@@ -1,5 +1,6 @@
 package com.example.vault.demo;
 
+import java.io.FileReader;
 import java.io.FileWriter;
 import java.io.IOException;
 import java.math.BigInteger;
@@ -7,13 +8,17 @@ import java.security.KeyPair;
 import java.security.KeyPairGenerator;
 import java.security.NoSuchAlgorithmException;
 import java.security.NoSuchProviderException;
+import java.security.PrivateKey;
 import java.security.Provider;
 import java.security.Security;
+import java.security.cert.CertificateException;
+import java.security.cert.X509Certificate;
 import java.util.Date;
 
 import org.bouncycastle.asn1.ASN1EncodableVector;
 import org.bouncycastle.asn1.DERSet;
 import org.bouncycastle.asn1.pkcs.PKCSObjectIdentifiers;
+import org.bouncycastle.asn1.pkcs.PrivateKeyInfo;
 import org.bouncycastle.asn1.x500.X500Name;
 import org.bouncycastle.asn1.x509.Attribute;
 import org.bouncycastle.asn1.x509.BasicConstraints;
@@ -21,11 +26,17 @@ import org.bouncycastle.asn1.x509.Extension;
 import org.bouncycastle.asn1.x509.Extensions;
 import org.bouncycastle.asn1.x509.ExtensionsGenerator;
 import org.bouncycastle.asn1.x509.KeyUsage;
+import org.bouncycastle.asn1.x509.SubjectPublicKeyInfo;
 import org.bouncycastle.cert.CertIOException;
 import org.bouncycastle.cert.X509CertificateHolder;
+import org.bouncycastle.cert.X509v3CertificateBuilder;
+import org.bouncycastle.cert.jcajce.JcaX509CertificateConverter;
 import org.bouncycastle.cert.jcajce.JcaX509ExtensionUtils;
 import org.bouncycastle.cert.jcajce.JcaX509v3CertificateBuilder;
 import org.bouncycastle.jce.provider.BouncyCastleProvider;
+import org.bouncycastle.openssl.PEMKeyPair;
+import org.bouncycastle.openssl.PEMParser;
+import org.bouncycastle.openssl.jcajce.JcaPEMKeyConverter;
 import org.bouncycastle.openssl.jcajce.JcaPEMWriter;
 import org.bouncycastle.operator.ContentSigner;
 import org.bouncycastle.operator.OperatorCreationException;
@@ -41,11 +52,7 @@ public class BouncyCastleService {
         Security.addProvider(new BouncyCastleProvider());
 
         // RSA KeyPair 생성
-        // Algorithm과 provider BC(Bouncy Castle) 지정
-        KeyPairGenerator keyGen = KeyPairGenerator.getInstance("RSA", "BC");
-        // 키 사이즈 지정
-        keyGen.initialize(2048);
-        KeyPair keyPair = keyGen.generateKeyPair();
+        KeyPair keyPair = generateKeyPair("RSA", 2048);
 
         // CSR 주체 정보 입력
         X500Name subject = new X500Name(
@@ -93,13 +100,11 @@ public class BouncyCastleService {
         }
     }
 
-    public void generateRootCA () throws NoSuchAlgorithmException, NoSuchProviderException, CertIOException, OperatorCreationException {
+    public void generateRootCA() throws NoSuchAlgorithmException, NoSuchProviderException, CertIOException, OperatorCreationException {
         Security.addProvider(new BouncyCastleProvider());
 
         // RSA KeyPair 생성
-        KeyPairGenerator keyGen = KeyPairGenerator.getInstance("RSA", "BC");
-        keyGen.initialize(4096);
-        KeyPair keyPair = keyGen.generateKeyPair();
+        KeyPair keyPair = generateKeyPair("RSA", 4096);
 
         // CA 주체 이름
         X500Name issuer = new X500Name("CN=HoseokRootCA, O=Hoseok Cloud, C=KR, OU=Deployment Develop Department, ST=Gyeonggi-do, L=Pangyo, E=hoseok.kim@abcd.com");
@@ -151,7 +156,51 @@ public class BouncyCastleService {
         System.out.println("Root CA 인증서 및 키 생성 완료");
     }
 
-    public void getBouncyCastleProviderAlgorithm(){
+    public void generateIntermediateCACsr() throws IOException, NoSuchAlgorithmException, NoSuchProviderException, OperatorCreationException {
+        Security.addProvider(new BouncyCastleProvider());
+        // Intermediate용 KeyPair 생성
+        KeyPair intermediateKeyPair = generateKeyPair("RSA", 4096);
+
+        // 개인키 PEM 저장
+        try (JcaPEMWriter writer = new JcaPEMWriter(new FileWriter("intermediateCA.key"))) {
+            writer.writeObject(intermediateKeyPair.getPrivate());
+            System.out.println("Intermediate Private Key 저장 완료");
+        }
+
+        // Subject 이름 설정
+        X500Name subject = new X500Name(
+            "CN=HoseokIntermediateCA, O=Hoseok Cloud, OU=Deployment Develop Department, C=KR, ST=Gyeonggi-do, L=Pangyo, E=hoseok.kim@abcd.com"
+        );
+
+        // 확장 생성
+        ExtensionsGenerator extGen = new ExtensionsGenerator();
+        extGen.addExtension(Extension.basicConstraints, true, new BasicConstraints(true));  // CA: true
+        extGen.addExtension(Extension.keyUsage, true, new KeyUsage(KeyUsage.keyCertSign | KeyUsage.cRLSign));
+
+        Extensions extensions = extGen.generate();
+
+        SubjectPublicKeyInfo subjectPublicKeyInfo = SubjectPublicKeyInfo.getInstance(intermediateKeyPair.getPublic().getEncoded());
+        // CSR 빌더
+        PKCS10CertificationRequestBuilder csrBuilder =
+            new PKCS10CertificationRequestBuilder(subject, subjectPublicKeyInfo);
+
+        csrBuilder.addAttribute(PKCSObjectIdentifiers.pkcs_9_at_extensionRequest, extensions);
+
+        ContentSigner signer = new JcaContentSignerBuilder("SHA256withRSA")
+            .setProvider("BC")
+            .build(intermediateKeyPair.getPrivate());
+
+        PKCS10CertificationRequest csr = csrBuilder.build(signer);
+
+        // PEM 파일로 저장
+        try (JcaPEMWriter writer = new JcaPEMWriter(new FileWriter("intermediate.csr"))) {
+            writer.writeObject(csr);
+        }
+
+        System.out.println("Intermediate CSR 파일 생성 완료");
+    }
+
+    public void getBouncyCastleProviderAlgorithm() {
         // Provider 등록
         Security.addProvider(new BouncyCastleProvider());
 
@@ -164,5 +213,98 @@ public class BouncyCastleService {
         } else {
             System.out.println("BC Provider not found!");
         }
+    }
+
+    public void signIntermediateCACsr() throws IOException, CertificateException, NoSuchAlgorithmException, OperatorCreationException {
+        Security.addProvider(new BouncyCastleProvider());
+
+        // Root 개인키 로드
+        PrivateKey rootPrivateKey = getRootCaKey("rootCA.key");
+
+        // Root 인증서 로드
+        X509Certificate rootCertificate = getRootCACertificate("rootCA.crt");
+
+        // CSR 로드
+        PKCS10CertificationRequest csr;
+        try (PEMParser pemParser = new PEMParser(new FileReader("intermediate.csr"))) {
+            csr = (PKCS10CertificationRequest) pemParser.readObject();
+        }
+
+        // 발급 기간 및 시리얼 설정
+        BigInteger serial = BigInteger.valueOf(System.currentTimeMillis());
+        Date notBefore = new Date(System.currentTimeMillis() - 1000L * 60 * 60);
+        Date notAfter = new Date(System.currentTimeMillis() + (10L * 365 * 24 * 60 * 60 * 1000));  // 10년
+
+        X509v3CertificateBuilder certBuilder = new X509v3CertificateBuilder(
+            new X500Name(rootCertificate.getSubjectX500Principal().getName()),
+            serial,
+            notBefore,
+            notAfter,
+            csr.getSubject(),
+            csr.getSubjectPublicKeyInfo()
+        );
+
+        // 확장 필드 설정
+        JcaX509ExtensionUtils extUtils = new JcaX509ExtensionUtils();
+        certBuilder.addExtension(Extension.basicConstraints, true, new BasicConstraints(true));  // CA: true
+        certBuilder.addExtension(Extension.keyUsage, true, new KeyUsage(KeyUsage.keyCertSign | KeyUsage.cRLSign));
+        certBuilder.addExtension(Extension.subjectKeyIdentifier, false,
+            extUtils.createSubjectKeyIdentifier(csr.getSubjectPublicKeyInfo()));
+        certBuilder.addExtension(Extension.authorityKeyIdentifier, false,
+            extUtils.createAuthorityKeyIdentifier(rootCertificate.getPublicKey()));
+
+        ContentSigner signer = new JcaContentSignerBuilder("SHA256withRSA")
+            .setProvider("BC")
+            .build(rootPrivateKey);
+
+        X509CertificateHolder certHolder = certBuilder.build(signer);
+        X509Certificate issuedCert = new JcaX509CertificateConverter().setProvider("BC").getCertificate(certHolder);
+
+        // PEM 저장
+        try (JcaPEMWriter writer = new JcaPEMWriter(new FileWriter("intermediateCA.crt"))) {
+            writer.writeObject(issuedCert);
+        }
+
+        System.out.println("Intermediate 인증서 발급 완료");
+    }
+
+    private PrivateKey getRootCaKey(String keyPath) throws IOException {
+        PrivateKey rootPrivateKey;
+
+        try (PEMParser pemParser = new PEMParser(new FileReader(keyPath))) {
+            Object object = pemParser.readObject();
+            JcaPEMKeyConverter converter = new JcaPEMKeyConverter().setProvider("BC");
+            if (object instanceof PEMKeyPair) {
+                // KeyPair 형태로 들어온 경우
+                rootPrivateKey = converter.getKeyPair((PEMKeyPair) object).getPrivate();
+            } else if (object instanceof PrivateKeyInfo) {
+                // PKCS#8 형태로 들어온 경우
+                rootPrivateKey = converter.getPrivateKey((PrivateKeyInfo) object);
+            } else {
+                throw new IllegalArgumentException("지원하지 않는 키 형식입니다: " + object.getClass());
+            }
+        }
+
+        return rootPrivateKey;
+    }
+
+    private X509Certificate getRootCACertificate(String path) throws IOException, CertificateException {
+        X509Certificate rootCertificate;
+
+        try (PEMParser pemParser = new PEMParser(new FileReader("rootCA.crt"))) {
+            Object object = pemParser.readObject();
+            rootCertificate = new JcaX509CertificateConverter().setProvider("BC")
+                .getCertificate((X509CertificateHolder) object);
+        }
+
+        return rootCertificate;
+    }
+
+    private KeyPair generateKeyPair(String algorithm, int keySize) throws NoSuchAlgorithmException, NoSuchProviderException {
+        // Algorithm과 provider BC(Bouncy Castle) 지정
+        KeyPairGenerator keyGen = KeyPairGenerator.getInstance(algorithm, "BC");
+        // 키 사이즈 지정
+        keyGen.initialize(keySize);
+        return keyGen.generateKeyPair();
     }
 }
