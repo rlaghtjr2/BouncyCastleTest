@@ -29,7 +29,7 @@ public class BouncyCastleTest {
     }
 
     @Test
-    public void test_gernerateIntermediateCA() throws NoSuchAlgorithmException, IOException, NoSuchProviderException, OperatorCreationException, CertificateException {
+    public void test_generateIntermediateCA() throws NoSuchAlgorithmException, IOException, NoSuchProviderException, OperatorCreationException, CertificateException {
         BouncyCastleService bouncyCastleService = new BouncyCastleService();
         bouncyCastleService.generateIntermediateCACsr();
     }
@@ -38,5 +38,35 @@ public class BouncyCastleTest {
     public void test_signIntermediateCaCsr() throws CertificateException, IOException, NoSuchAlgorithmException, OperatorCreationException {
         BouncyCastleService bouncyCastleService = new BouncyCastleService();
         bouncyCastleService.signIntermediateCACsr();
+    }
+
+    @Test
+    public void test_generateLeafServerCsr() throws NoSuchAlgorithmException, IOException, NoSuchProviderException, OperatorCreationException {
+        BouncyCastleService bouncyCastleService = new BouncyCastleService();
+        bouncyCastleService.generateLeafCertificateCSR("server");
+    }
+
+    @Test
+    public void test_signLeafServerCsr() throws CertificateException, IOException, NoSuchAlgorithmException, OperatorCreationException {
+        BouncyCastleService bouncyCastleService = new BouncyCastleService();
+        bouncyCastleService.signLeafCertificate("server");
+    }
+
+    @Test
+    public void test_generateLeafClientCsr() throws NoSuchAlgorithmException, IOException, NoSuchProviderException, OperatorCreationException {
+        BouncyCastleService bouncyCastleService = new BouncyCastleService();
+        bouncyCastleService.generateLeafCertificateCSR("client");
+    }
+
+    @Test
+    public void test_signLeafClientCsr() throws CertificateException, IOException, NoSuchAlgorithmException, OperatorCreationException {
+        BouncyCastleService bouncyCastleService = new BouncyCastleService();
+        bouncyCastleService.signLeafCertificate("client");
+    }
+
+    @Test
+    public void test_generateChainCertificate() throws CertificateException, IOException {
+        BouncyCastleService bouncyCastleService = new BouncyCastleService();
+        bouncyCastleService.generateChainCertificate();
     }
 }
