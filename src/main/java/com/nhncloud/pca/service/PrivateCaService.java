@@ -1,4 +1,4 @@
-package com.example.vault.demo;
+package com.nhncloud.pca.service;
 
 import java.io.FileInputStream;
 import java.io.FileReader;
@@ -55,7 +55,7 @@ import org.bouncycastle.pkcs.jcajce.JcaPKCS10CertificationRequestBuilder;
 import org.bouncycastle.util.io.pem.PemObject;
 import org.bouncycastle.util.io.pem.PemWriter;
 
-public class BouncyCastleService {
+public class PrivateCaService {
 
     public void generateCsr() throws NoSuchAlgorithmException, NoSuchProviderException, IOException, OperatorCreationException {
         // Bouncy Castle Provider 등록

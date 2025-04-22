@@ -1,4 +1,4 @@
-package com.example.vault.demo;
+package com.nhncloud.pca;
 
 import org.junit.jupiter.api.Test;
 import org.springframework.boot.test.context.SpringBootTest;

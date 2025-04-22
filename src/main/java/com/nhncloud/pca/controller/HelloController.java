@@ -1,4 +1,4 @@
-package com.example.vault.demo.controller;
+package com.nhncloud.pca.controller;
 
 import jakarta.servlet.http.HttpServletRequest;
 import org.springframework.web.bind.annotation.GetMapping;

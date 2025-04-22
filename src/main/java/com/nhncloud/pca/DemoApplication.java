@@ -1,4 +1,4 @@
-package com.example.vault.demo;
+package com.nhncloud.pca;
 
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;

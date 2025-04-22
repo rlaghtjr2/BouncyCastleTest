@@ -1,4 +1,4 @@
-package com.example.vault.demo.client;
+package com.nhncloud.pca.client;
 
 import lombok.extern.slf4j.Slf4j;
 import org.apache.hc.client5.http.impl.classic.CloseableHttpClient;
