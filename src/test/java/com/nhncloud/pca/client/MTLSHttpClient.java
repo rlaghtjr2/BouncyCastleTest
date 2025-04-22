@@ -14,12 +14,14 @@ import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.core.io.Resource;
 import org.springframework.http.client.ClientHttpRequestFactory;
 import org.springframework.http.client.HttpComponentsClientHttpRequestFactory;
+import org.springframework.test.context.ActiveProfiles;
 import org.springframework.web.client.RestTemplate;
 
 import javax.net.ssl.SSLContext;
 
 @SpringBootTest
 @Slf4j
+@ActiveProfiles("test")
 class MTLSHttpClient {
     @Value("${mtls.server-url}")
     private String serverUrl;
@@ -40,10 +42,8 @@ class MTLSHttpClient {
     void test_MTLS() throws Exception {
         // RestTemplate에 HttpClient 설정
         RestTemplate restTemplate = restTemplate();
-
-        // REST 호출
+        // REST API 호출
         String response = restTemplate.getForObject(serverUrl, String.class);
-
         log.info("Response: " + response);
     }
 

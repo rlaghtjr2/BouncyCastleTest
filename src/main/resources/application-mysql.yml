@@ -1,0 +1,10 @@
+spring:
+  config:
+    activate:
+      on-profile: test,local
+  datasource:
+    driver-class-name: com.mysql.cj.jdbc.Driver
+    url: jdbc:mysql://730a7c5e-9fb5-446f-bcb8-1d4a1ea370f4.internal.kr1.mysql.rds.nhncloudservice.com:13306/kms_dev
+    username: kms
+    password: kms345#$%
+---

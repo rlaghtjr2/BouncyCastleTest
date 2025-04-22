@@ -1,0 +1,20 @@
+# mtls 테스트 서버 설정
+server:
+  port: 8443
+  ssl:
+    enabled: true
+    key-store: classpath:cert1/server-keystore.p12
+    key-store-password: nhn!@#123
+    key-store-type: PKCS12
+    trust-store: classpath:cert1/server-truststore.p12
+    trust-store-password: nhn!@#123
+    trust-store-type: PKCS12
+    client-auth: need
+
+# mtls 테스트 클라이언트 설정
+mtls:
+  server-url: https://localhost:8443/secure-hello
+  keystore: classpath:cert1/client-keystore.p12
+  keystore-password: nhn!@#123
+  truststore: classpath:cert1/client-truststore.p12
+  truststore-password: nhn!@#123
