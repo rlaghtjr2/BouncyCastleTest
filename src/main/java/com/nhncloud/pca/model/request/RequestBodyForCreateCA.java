@@ -8,7 +8,7 @@ import com.nhncloud.pca.model.key.KeyInfo;
 import com.nhncloud.pca.model.subject.SubjectInfo;
 
 @Data
-public class RequestBodyForCreateRootCA {
+public class RequestBodyForCreateCA {
     private String name;
     private String description;
     private KeyInfo keyInfo;

@@ -1,0 +1,92 @@
+package com.nhncloud.pca.util;
+
+import java.io.IOException;
+import java.io.StringReader;
+import java.io.StringWriter;
+import java.io.UncheckedIOException;
+import java.security.PrivateKey;
+import java.security.cert.CertificateException;
+import java.security.cert.X509Certificate;
+import java.util.List;
+
+import org.bouncycastle.asn1.pkcs.PrivateKeyInfo;
+import org.bouncycastle.cert.CertIOException;
+import org.bouncycastle.cert.X509CertificateHolder;
+import org.bouncycastle.cert.X509v3CertificateBuilder;
+import org.bouncycastle.cert.jcajce.JcaX509CertificateConverter;
+import org.bouncycastle.openssl.PEMKeyPair;
+import org.bouncycastle.openssl.PEMParser;
+import org.bouncycastle.openssl.jcajce.JcaPEMKeyConverter;
+import org.bouncycastle.openssl.jcajce.JcaPEMWriter;
+import org.bouncycastle.pkcs.PKCS10CertificationRequest;
+
+import com.nhncloud.pca.model.certificate.CertificateExtension;
+
+public class CertificateUtil {
+    public static String toPemString(Object pemObject) {
+        StringWriter stringWriter = new StringWriter();
+        try (JcaPEMWriter pemWriter = new JcaPEMWriter(stringWriter)) {
+            pemWriter.writeObject(pemObject);
+        } catch (IOException e) {
+            throw new UncheckedIOException("PEM 변환 실패", e);
+        }
+        return stringWriter.toString();
+    }
+    
+    public static void setCertificateExtensions(X509v3CertificateBuilder certBuilder, List<CertificateExtension> extensions) {
+        for (CertificateExtension extension : extensions) {
+            try {
+                certBuilder.addExtension(extension.getName(), extension.isCritical(), extension.getValue());
+            } catch (CertIOException e) {
+                throw new RuntimeException("setCertificateExtensions() = [CertIOException]");
+            }
+        }
+    }
+
+    public static X509Certificate parseCertificate(String pem) {
+        try (PEMParser parser = new PEMParser(new StringReader(pem))) {
+            Object obj = parser.readObject();
+            if (obj instanceof X509CertificateHolder) {
+                return new JcaX509CertificateConverter()
+                    .setProvider("BC")
+                    .getCertificate((X509CertificateHolder) obj);
+            } else {
+                throw new IllegalArgumentException("Invalid PEM format");
+            }
+        } catch (IOException e) {
+            throw new RuntimeException("new PEMParser() = [IOException]");
+        } catch (CertificateException e) {
+            throw new RuntimeException("new JcaX509CertificateConverter() = [CertificateException]");
+        }
+    }
+
+    public static PKCS10CertificationRequest parseCsr(String pem) {
+        try (PEMParser parser = new PEMParser(new StringReader(pem))) {
+            Object obj = parser.readObject();
+            if (obj instanceof PKCS10CertificationRequest) {
+                return (PKCS10CertificationRequest) obj;
+            } else {
+                throw new IllegalArgumentException("CSR 형식이 아님");
+            }
+        } catch (IOException e) {
+            throw new RuntimeException("new PEMParser() = [IOException]");
+        }
+    }
+
+    public static PrivateKey parsePrivateKey(String pem) {
+        try (PEMParser parser = new PEMParser(new StringReader(pem))) {
+            Object obj = parser.readObject();
+            JcaPEMKeyConverter converter = new JcaPEMKeyConverter().setProvider("BC");
+
+            if (obj instanceof PEMKeyPair) {
+                return converter.getKeyPair((PEMKeyPair) obj).getPrivate();
+            } else if (obj instanceof PrivateKeyInfo) {
+                return converter.getPrivateKey((PrivateKeyInfo) obj);
+            } else {
+                throw new IllegalArgumentException("지원하지 않는 Private Key 형식");
+            }
+        } catch (IOException e) {
+            throw new RuntimeException("new PEMParser() = [IOException]");
+        }
+    }
+}

@@ -28,9 +28,9 @@ public class CertificateApiControllerTest {
     private MockMvc mockMvc;
 
     @Test
-    public void testGetCertificate() throws Exception {
+    public void test_root_CA_생성() throws Exception {
 
-        CertificateResult certificateResult = CommonTestUtil.createTestCertificateResult();
+        CertificateResult certificateResult = CommonTestUtil.createTestCertificateResult_Root();
 
         when(certificateService.generateRootCertificate(any())).thenReturn(certificateResult);
 
@@ -46,6 +46,41 @@ public class CertificateApiControllerTest {
             "  \"ip\": [],\n" +
             "  \"subjectInfo\": {\n" +
             "    \"commonName\": \"ROOT CA\",\n" +
+            "    \"country\": \"KR\",\n" +
+            "    \"stateOrProvince\": \"Gyeonggi-do\",\n" +
+            "    \"locality\": \"Pangyo\",\n" +
+            "    \"organization\": \"NHN Cloud\",\n" +
+            "    \"organizationalUnit\": \"Deployment Development\",\n" +
+            "    \"emailAddress\": \"hoseok.kim@nhn.com\"\n" +
+            "  }\n" +
+            "}";
+        mockMvc.perform(post("/certificate/root")
+                .contentType("application/json")
+                .content(body))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.header.isSuccessful").value(true))
+            .andExpect(jsonPath("$.body.caCertificateInfo.caCertificateId").value("1234"));
+    }
+
+    @Test
+    public void test_intermediate_CA_생성() throws Exception {
+
+        CertificateResult certificateResult = CommonTestUtil.createTestCertificateResult_Intermediate();
+
+        when(certificateService.generateIntermediateCertificate(any())).thenReturn(certificateResult);
+
+        String body = "{\n" +
+            "  \"name\": \"Intermediate CA NAME\",\n" +
+            "  \"description\": \"Intermediate CA DESCRIPTION\",\n" +
+            "  \"keyInfo\": {\n" +
+            "    \"algorithm\": \"RSA\",\n" +
+            "    \"keySize\": 2048\n" +
+            "  },\n" +
+            "  \"period\": 3650,\n" +
+            "  \"altName\": [],\n" +
+            "  \"ip\": [],\n" +
+            "  \"subjectInfo\": {\n" +
+            "    \"commonName\": \"Intermediate CA\",\n" +
             "    \"country\": \"KR\",\n" +
             "    \"stateOrProvince\": \"Gyeonggi-do\",\n" +
             "    \"locality\": \"Pangyo\",\n" +

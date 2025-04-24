@@ -3,11 +3,13 @@ package com.nhncloud.pca.service;
 import org.junit.jupiter.api.Test;
 
 import com.nhncloud.pca.CommonTestUtil;
-import com.nhncloud.pca.model.request.RequestBodyForCreateRootCA;
+import com.nhncloud.pca.model.certificate.CaCertificateInfo;
+import com.nhncloud.pca.model.request.RequestBodyForCreateCA;
 import com.nhncloud.pca.model.response.CertificateResult;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 
 public class CertificateServiceTest {
@@ -24,7 +26,7 @@ public class CertificateServiceTest {
 
     @Test
     public void test_rootCA_잘못된_키_알고리즘() {
-        RequestBodyForCreateRootCA requestBody = CommonTestUtil.createTestCertificateRequestBody();
+        RequestBodyForCreateCA requestBody = CommonTestUtil.createTestCertificateRequestBody();
         requestBody.getKeyInfo().setAlgorithm("INVALID_ALGORITHM");
         Exception exception = assertThrows(RuntimeException.class, () -> {
             // 예외를 발생시킬 코드
@@ -34,4 +36,18 @@ public class CertificateServiceTest {
         assertEquals("Wrong Algorithm", exception.getMessage());
     }
 
+    @Test
+    public void test_generateIntermediateCertificateCsr() {
+        CaCertificateInfo caCertificateInfo = service.generateIntermediateCaCsr(CommonTestUtil.createTestCertificateRequestBody());
+        assertNotNull(caCertificateInfo);
+    }
+
+    @Test
+    public void test_generateIntermediateCertificate() throws Exception {
+        CertificateResult result = service.generateIntermediateCertificate(CommonTestUtil.createTestCertificateRequestBody());
+        assertNotNull(result);
+        assertNotNull(result.getCaCertificateInfo().getCertificatePem());
+        assertNotNull(result.getCaCertificateInfo().getPrivateKeyPem());
+        System.out.println(result);
+    }
 }

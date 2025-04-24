@@ -1,12 +1,30 @@
 package com.nhncloud.pca;
 
+import java.io.IOException;
+import java.math.BigInteger;
+import java.nio.file.Files;
+import java.nio.file.Paths;
+import java.security.KeyPair;
+import java.security.KeyPairGenerator;
+import java.security.NoSuchAlgorithmException;
+import java.security.cert.CertificateException;
+import java.security.cert.X509Certificate;
 import java.time.LocalDateTime;
+import java.util.Date;
+
+import org.bouncycastle.asn1.x500.X500Name;
+import org.bouncycastle.cert.X509CertificateHolder;
+import org.bouncycastle.cert.jcajce.JcaX509CertificateConverter;
+import org.bouncycastle.cert.jcajce.JcaX509v3CertificateBuilder;
+import org.bouncycastle.operator.ContentSigner;
+import org.bouncycastle.operator.OperatorCreationException;
+import org.bouncycastle.operator.jcajce.JcaContentSignerBuilder;
 
 import com.nhncloud.pca.constant.CaType;
 import com.nhncloud.pca.model.ca.CaInfo;
 import com.nhncloud.pca.model.certificate.CaCertificateInfo;
 import com.nhncloud.pca.model.key.KeyInfo;
-import com.nhncloud.pca.model.request.RequestBodyForCreateRootCA;
+import com.nhncloud.pca.model.request.RequestBodyForCreateCA;
 import com.nhncloud.pca.model.response.CertificateResult;
 import com.nhncloud.pca.model.subject.SubjectInfo;
 
@@ -44,8 +62,20 @@ public class CommonTestUtil {
     public static final String TEST_CERTIFICATE_INFO_STATUS = "ACTIVE";
     public static final String TEST_CERTIFICATE_INFO_CREATION_DATETIME = "2023-10-01T00:00:00";
 
-    public static RequestBodyForCreateRootCA createTestCertificateRequestBody() {
-        RequestBodyForCreateRootCA requestBody = new RequestBodyForCreateRootCA();
+    public static final String ROOT_CA_CERT_PEM;
+    public static final String ROOT_CA_KEY_PEM;
+
+    static {
+        try {
+            ROOT_CA_CERT_PEM = Files.readString(Paths.get("src/test/resources/certs/rootCA.crt"));
+            ROOT_CA_KEY_PEM = Files.readString(Paths.get("src/test/resources/certs/rootCA.key"));
+        } catch (IOException e) {
+            throw new ExceptionInInitializerError("Failed to load root CA files: " + e.getMessage());
+        }
+    }
+
+    public static RequestBodyForCreateCA createTestCertificateRequestBody() {
+        RequestBodyForCreateCA requestBody = new RequestBodyForCreateCA();
         requestBody.setName(TEST_CERTIFICATE_NAME);
         requestBody.setPeriod(TEST_CERTIFICATE_PERIOD);
         requestBody.setKeyInfo(createTestKeyInfo());
@@ -71,28 +101,89 @@ public class CommonTestUtil {
         return subjectInfo;
     }
 
-    public static CaCertificateInfo createTestCaCertificateInfo() {
-        CaCertificateInfo caCertificateInfo = CaCertificateInfo.builder().
-            caCertificateId(TEST_CERTIFICATE_INFO_ID).serialNumber(TEST_CERTIFICATE_INFO_SERIAL_NUMBER).commonName(TEST_CERTIFICATE_INFO_COMMON_NAME).
-            country(TEST_CERTIFICATE_INFO_COUNTRY).locality(TEST_CERTIFICATE_INFO_LOCALITY).stateProvince(TEST_CERTIFICATE_INFO_STATE_PROVINCE).
-            organization(TEST_CERTIFICATE_INFO_ORGANIZATION).issuer(TEST_CERTIFICATE_INFO_ISSUER).notBeforeDateTime(TEST_CERTIFICATE_INFO_NOT_BEFORE).
-            notAfterDateTime(TEST_CERTIFICATE_INFO_NOT_AFTER).certificatePem(TEST_CERTIFICATE_INFO_CERTIFICATE_PEM).
-            chainCertificatePem(TEST_CERTIFICATE_INFO_CHAIN_CERTIFICATE_PEM).publicKeyAlgorithm(TEST_CERTIFICATE_INFO_PUBLIC_KEY_ALGORITHM).
-            signatureAlgorithm(TEST_CERTIFICATE_INFO_SIGNATURE_ALGORITHM).build();
+    public static CaCertificateInfo createTestRootCaCertificateInfo() {
+        CaCertificateInfo caCertificateInfo = CaCertificateInfo.of(
+            createTestSubjectInfo(),
+            generateSelfSignedCertificate(),
+            createTestKeyInfo(),
+            ROOT_CA_CERT_PEM,
+            ROOT_CA_KEY_PEM
+        );
         return caCertificateInfo;
     }
 
-    public static CaInfo createTestCaInfo() {
-        CaInfo caInfo = CaInfo.builder().
-            caId(TEST_CA_INFO_ID).name(TEST_CA_INFO_NAME).caType(TEST_CA_INFO_TYPE).build();
+    public static CaInfo createTestCaInfo_Root() {
+        CaInfo caInfo = CaInfo.of(createTestCertificateRequestBody(), CaType.ROOT.getType());
         return caInfo;
     }
 
-    public static CertificateResult createTestCertificateResult() {
-        CertificateResult certificateResult = CertificateResult.builder().
-            caInfo(createTestCaInfo()).caCertificateInfo(createTestCaCertificateInfo()).status(TEST_CERTIFICATE_INFO_STATUS).
-            creationDatetime(LocalDateTime.parse(TEST_CERTIFICATE_INFO_CREATION_DATETIME)).creationUser("testUser").
-            lastChangeDatetime(LocalDateTime.parse(TEST_CERTIFICATE_INFO_CREATION_DATETIME)).lastChangeUser("testUser").build();
+    public static CertificateResult createTestCertificateResult_Root() {
+        CertificateResult certificateResult = CertificateResult.of(
+            createTestCaInfo_Root(),
+            createTestRootCaCertificateInfo(),
+            TEST_CERTIFICATE_INFO_STATUS
+        );
+
         return certificateResult;
+    }
+
+    public static CaInfo createTestCaInfo_Intermediate() {
+        CaInfo caInfo = CaInfo.of(createTestCertificateRequestBody(), CaType.SUB.getType());
+        return caInfo;
+    }
+
+    public static CertificateResult createTestCertificateResult_Intermediate() {
+        CertificateResult certificateResult = CertificateResult.of(
+            createTestCaInfo_Intermediate(),
+            createTestRootCaCertificateInfo(),
+            TEST_CERTIFICATE_INFO_STATUS
+        );
+
+        return certificateResult;
+    }
+
+    public static X509Certificate generateSelfSignedCertificate() {
+        // KeyPair 생성
+        KeyPairGenerator keyPairGenerator = null;
+        try {
+            keyPairGenerator = KeyPairGenerator.getInstance("RSA");
+        } catch (NoSuchAlgorithmException e) {
+            throw new RuntimeException(e);
+        }
+        keyPairGenerator.initialize(2048);
+        KeyPair keyPair = keyPairGenerator.generateKeyPair();
+
+        // 인증서 정보
+        long now = System.currentTimeMillis();
+        Date notBefore = new Date(now - 1000L * 60); // 1분 전
+        Date notAfter = new Date(now + 1000L * 60 * 60 * 24 * 365); // 1년 후
+
+        X500Name issuer = new X500Name("CN=Test CA, O=Test Org, C=KR");
+        BigInteger serial = BigInteger.valueOf(now);
+
+        // 인증서 빌드
+        JcaX509v3CertificateBuilder certBuilder = new JcaX509v3CertificateBuilder(
+            issuer, serial, notBefore, notAfter, issuer, keyPair.getPublic()
+        );
+
+        // 서명 알고리즘
+        ContentSigner signer = null;
+        try {
+            signer = new JcaContentSignerBuilder("SHA256withRSA")
+                .build(keyPair.getPrivate());
+        } catch (OperatorCreationException e) {
+            throw new RuntimeException(e);
+        }
+
+        X509CertificateHolder certHolder = certBuilder.build(signer);
+
+        // X509Certificate 변환
+        try {
+            return new JcaX509CertificateConverter()
+                .setProvider("BC")
+                .getCertificate(certHolder);
+        } catch (CertificateException e) {
+            throw new RuntimeException(e);
+        }
     }
 }

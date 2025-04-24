@@ -21,4 +21,14 @@ public class CertificateResult {
     private String creationUser;
     private LocalDateTime lastChangeDatetime;
     private String lastChangeUser;
+
+    public static CertificateResult of(CaInfo caInfo, CaCertificateInfo caCertInfo, String caStatus) {
+        return CertificateResult.builder()
+            .caInfo(caInfo)
+            .caCertificateInfo(caCertInfo)
+            .status(caStatus)
+            .creationDatetime(LocalDateTime.now())
+            .creationUser("hoseok")
+            .build();
+    }
 }

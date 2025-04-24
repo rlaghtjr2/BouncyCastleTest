@@ -3,7 +3,12 @@ package com.nhncloud.pca.model.certificate;
 import lombok.Builder;
 import lombok.Data;
 
+import java.security.cert.X509Certificate;
 import java.time.LocalDateTime;
+import java.time.ZoneId;
+
+import com.nhncloud.pca.model.key.KeyInfo;
+import com.nhncloud.pca.model.subject.SubjectInfo;
 
 @Data
 @Builder
@@ -24,7 +29,27 @@ public class CaCertificateInfo {
 
     private String certificatePem;
     private String chainCertificatePem;
+    private String privateKeyPem;
 
     private String publicKeyAlgorithm;
     private String signatureAlgorithm;
+
+    public static CaCertificateInfo of(SubjectInfo subjectInfo, X509Certificate certificate, KeyInfo keyInfo, String certPem, String privateKeyPem) {
+        return CaCertificateInfo.builder()
+            .caCertificateId(1234L)
+            .serialNumber(certificate.getSerialNumber().toString())
+            .commonName(subjectInfo.getCommonName())
+            .country(subjectInfo.getCountry())
+            .locality(subjectInfo.getLocality())
+            .stateProvince(subjectInfo.getStateOrProvince())
+            .organization(subjectInfo.getOrganization())
+            .issuer(certificate.getIssuerX500Principal().getName())
+            .notBeforeDateTime(certificate.getNotBefore().toInstant().atZone(ZoneId.systemDefault()).toLocalDateTime())
+            .notAfterDateTime(certificate.getNotAfter().toInstant().atZone(ZoneId.systemDefault()).toLocalDateTime())
+            .certificatePem(certPem)
+            .privateKeyPem(privateKeyPem)
+            .publicKeyAlgorithm(keyInfo.getAlgorithm())
+            .signatureAlgorithm(certificate.getSigAlgName())
+            .build();
+    }
 }
