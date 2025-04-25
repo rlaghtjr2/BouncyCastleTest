@@ -4,8 +4,6 @@ import lombok.extern.slf4j.Slf4j;
 
 import java.io.IOException;
 import java.math.BigInteger;
-import java.nio.file.Files;
-import java.nio.file.Paths;
 import java.security.KeyPair;
 import java.security.KeyPairGenerator;
 import java.security.NoSuchAlgorithmException;
@@ -37,23 +35,40 @@ import org.bouncycastle.operator.jcajce.JcaContentSignerBuilder;
 import org.bouncycastle.pkcs.PKCS10CertificationRequest;
 import org.bouncycastle.pkcs.PKCS10CertificationRequestBuilder;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import com.nhncloud.pca.constant.CaStatus;
 import com.nhncloud.pca.constant.CaType;
+import com.nhncloud.pca.entity.CaEntity;
+import com.nhncloud.pca.entity.CertificateEntity;
+import com.nhncloud.pca.mapper.CaMapper;
+import com.nhncloud.pca.mapper.CertificateMapper;
 import com.nhncloud.pca.model.ca.CaInfo;
-import com.nhncloud.pca.model.certificate.CaCertificateInfo;
 import com.nhncloud.pca.model.certificate.CertificateExtension;
+import com.nhncloud.pca.model.certificate.CertificateInfo;
 import com.nhncloud.pca.model.key.KeyInfo;
 import com.nhncloud.pca.model.request.RequestBodyForCreateCA;
 import com.nhncloud.pca.model.response.CertificateResult;
 import com.nhncloud.pca.model.subject.SubjectInfo;
+import com.nhncloud.pca.repository.CaRepository;
+import com.nhncloud.pca.repository.CertificateRepository;
 import com.nhncloud.pca.util.CertificateUtil;
 
 @Service
 @Slf4j
 public class CertificateServiceImpl implements CertificateService {
 
-    public CertificateServiceImpl() {
+    private final CertificateRepository certificateRepository;
+    private final CaRepository caRepository;
+
+    private final CertificateMapper certificateMapper;
+    private final CaMapper caMapper;
+
+    public CertificateServiceImpl(CertificateRepository certificateRepository, CaRepository caRepository, CertificateMapper certificateMapper, CaMapper caMapper) {
+        this.certificateRepository = certificateRepository;
+        this.caRepository = caRepository;
+        this.certificateMapper = certificateMapper;
+        this.caMapper = caMapper;
         initializeBouncyCastle();
     }
 
@@ -66,6 +81,7 @@ public class CertificateServiceImpl implements CertificateService {
 
 
     @Override
+    @Transactional
     public CertificateResult generateRootCertificate(RequestBodyForCreateCA requestBody) {
         log.info("generateRootCertificate() = {}", requestBody);
 
@@ -77,6 +93,7 @@ public class CertificateServiceImpl implements CertificateService {
 
         // publicKey → SubjectPublicKeyInfo로 변환
         SubjectPublicKeyInfo subjectPublicKeyInfo = SubjectPublicKeyInfo.getInstance(keyPair.getPublic().getEncoded());
+
         X500Name issuer = new X500Name(subjectInfo.toDistinguishedName());
 
         CertificateResult result = issueCertificate(
@@ -89,20 +106,33 @@ public class CertificateServiceImpl implements CertificateService {
             null
         );
 
+        // 2. DB에 저장
+        CaEntity caEntity = caMapper.toEntity(result.getCaInfo());
+        caEntity.setType(CaType.ROOT.getType());
+
+        CertificateEntity certificateEntity = certificateMapper.toEntity(result.getCertificateInfo());
+        certificateEntity.setCa(caEntity);
+        certificateEntity.setSignedCaId(caEntity.getCaId());
+        caEntity.setCertificate(certificateEntity);
+        caRepository.save(caEntity);
+
         return result;
     }
 
 
     @Override
     public CertificateResult generateIntermediateCertificate(RequestBodyForCreateCA requestBody) throws Exception {
-        CaCertificateInfo intermediateCaCertificateInfo = generateIntermediateCaCsr(requestBody);
+        CertificateInfo intermediateCertificateInfo = generateIntermediateCaCsr(requestBody);
 
-        //Todo DB Select 필요
-        String rootPrivateKeyPem = Files.readString(Paths.get("src/main/resources/cert/rootCA.key"));
-        String rootCertificatePem = Files.readString(Paths.get("src/main/resources/cert/rootCA.crt"));
+        // Root CA 정보 가져오기
+        CaEntity rootCaEntity = caRepository.findByCaIdAndType(requestBody.getRootCaId(), CaType.ROOT.getType());
+        Long rootCaId = rootCaEntity.getCaId();
+        CertificateInfo rootCertificateInfo = certificateMapper.toDto(rootCaEntity.getCertificate());
 
+        String rootPrivateKeyPem = rootCertificateInfo.getPrivateKeyPem();
+        String rootCertificatePem = rootCertificateInfo.getCertificatePem();
         // 정보 세팅
-        String csrPem = intermediateCaCertificateInfo.getCertificatePem();
+        String csrPem = intermediateCertificateInfo.getCertificatePem();
 
         PrivateKey rootPrivateKey = CertificateUtil.parsePrivateKey(rootPrivateKeyPem);
         X509Certificate rootCertificate = CertificateUtil.parseCertificate(rootCertificatePem);
@@ -115,14 +145,24 @@ public class CertificateServiceImpl implements CertificateService {
             csr.getSubjectPublicKeyInfo(),
             rootPrivateKey,
             CaType.SUB,
-            intermediateCaCertificateInfo.getPrivateKeyPem(),
+            intermediateCertificateInfo.getPrivateKeyPem(),
             rootCertificate
         );
+
+        // 2. DB에 저장
+        CaEntity caEntity = caMapper.toEntity(result.getCaInfo());
+        caEntity.setType(CaType.SUB.getType());
+
+        CertificateEntity certificateEntity = certificateMapper.toEntity(result.getCertificateInfo());
+        certificateEntity.setCa(caEntity);
+        certificateEntity.setSignedCaId(rootCaId);
+        caEntity.setCertificate(certificateEntity);
+        caRepository.save(caEntity);
 
         return result;
     }
 
-    public CaCertificateInfo generateIntermediateCaCsr(RequestBodyForCreateCA requestBody) {
+    public CertificateInfo generateIntermediateCaCsr(RequestBodyForCreateCA requestBody) {
         // Intermediate용 KeyPair 생성
         log.info("generateIntermediateCaCsr() = {}", requestBody);
 
@@ -167,7 +207,7 @@ public class CertificateServiceImpl implements CertificateService {
         String csrPem = CertificateUtil.toPemString(csr);
         String privateKeyPem = CertificateUtil.toPemString(keyPair.getPrivate());
 
-        CaCertificateInfo certificateInfo = CaCertificateInfo.builder()
+        CertificateInfo certificateInfo = CertificateInfo.builder()
             .certificatePem(csrPem)
             .privateKeyPem(privateKeyPem).build();
 
@@ -224,7 +264,7 @@ public class CertificateServiceImpl implements CertificateService {
         // 5. Return 객체 생성
         CaInfo caInfo = CaInfo.of(requestBody, caType.getType());
 
-        CaCertificateInfo caCertificateInfo = CaCertificateInfo.of(
+        CertificateInfo certificateInfo = CertificateInfo.of(
             subjectInfo,
             certificate,
             keyInfo,
@@ -234,11 +274,11 @@ public class CertificateServiceImpl implements CertificateService {
 
         return CertificateResult.of(
             caInfo,
-            caCertificateInfo,
+            certificateInfo,
             CaStatus.ACTIVE.getStatus()
         );
     }
-    
+
     private X509Certificate getX509Certificate(X509v3CertificateBuilder certBuilder, PrivateKey privateKey) {
         // 서명자 생성
         ContentSigner signer;

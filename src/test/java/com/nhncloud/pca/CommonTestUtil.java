@@ -22,7 +22,7 @@ import org.bouncycastle.operator.jcajce.JcaContentSignerBuilder;
 
 import com.nhncloud.pca.constant.CaType;
 import com.nhncloud.pca.model.ca.CaInfo;
-import com.nhncloud.pca.model.certificate.CaCertificateInfo;
+import com.nhncloud.pca.model.certificate.CertificateInfo;
 import com.nhncloud.pca.model.key.KeyInfo;
 import com.nhncloud.pca.model.request.RequestBodyForCreateCA;
 import com.nhncloud.pca.model.response.CertificateResult;
@@ -101,15 +101,15 @@ public class CommonTestUtil {
         return subjectInfo;
     }
 
-    public static CaCertificateInfo createTestRootCaCertificateInfo() {
-        CaCertificateInfo caCertificateInfo = CaCertificateInfo.of(
+    public static CertificateInfo createTestRootCaCertificateInfo() {
+        CertificateInfo certificateInfo = CertificateInfo.of(
             createTestSubjectInfo(),
             generateSelfSignedCertificate(),
             createTestKeyInfo(),
             ROOT_CA_CERT_PEM,
             ROOT_CA_KEY_PEM
         );
-        return caCertificateInfo;
+        return certificateInfo;
     }
 
     public static CaInfo createTestCaInfo_Root() {

@@ -13,6 +13,7 @@ public class RequestBodyForCreateCA {
     private String description;
     private KeyInfo keyInfo;
     private Integer period;
+    private Long rootCaId;
     private List<String> altName;
     private List<String> ip;
     private SubjectInfo subjectInfo;

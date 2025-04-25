@@ -21,7 +21,6 @@ public class CertificateApiController {
 
     public CertificateApiController(CertificateService certificateService) {
         this.certificateService = certificateService;
-
     }
 
     @PostMapping("/root")
@@ -32,6 +31,7 @@ public class CertificateApiController {
         } catch (Exception e) {
             //Exception 세분화 필요
             //Handler ? 혹은 Controller에서 Exception 마다 처리?
+            log.error("msg", e);
             return ResponseEntity.ok(ApiResponse.fail(50000, e.getMessage()));
         }
         return ResponseEntity.ok(ApiResponse.success(result));

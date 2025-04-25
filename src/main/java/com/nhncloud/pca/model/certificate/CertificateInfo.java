@@ -12,8 +12,8 @@ import com.nhncloud.pca.model.subject.SubjectInfo;
 
 @Data
 @Builder
-public class CaCertificateInfo {
-    private Long caCertificateId;
+public class CertificateInfo {
+    private Long certificateId;
     private String serialNumber;
 
     private String commonName;
@@ -34,9 +34,9 @@ public class CaCertificateInfo {
     private String publicKeyAlgorithm;
     private String signatureAlgorithm;
 
-    public static CaCertificateInfo of(SubjectInfo subjectInfo, X509Certificate certificate, KeyInfo keyInfo, String certPem, String privateKeyPem) {
-        return CaCertificateInfo.builder()
-            .caCertificateId(1234L)
+    public static CertificateInfo of(SubjectInfo subjectInfo, X509Certificate certificate, KeyInfo keyInfo, String certPem, String privateKeyPem) {
+        return CertificateInfo.builder()
+            .certificateId(1234L)
             .serialNumber(certificate.getSerialNumber().toString())
             .commonName(subjectInfo.getCommonName())
             .country(subjectInfo.getCountry())

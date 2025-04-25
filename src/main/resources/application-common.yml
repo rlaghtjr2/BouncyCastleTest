@@ -4,6 +4,8 @@ spring:
   jpa:
     hibernate:
       ddl-auto: none
+      naming:
+        physical-strategy: com.nhncloud.pca.config.JpaNamingStrategy
     show-sql: true
     properties:
       hibernate:
