@@ -6,7 +6,7 @@ import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.JoinColumn;
-import jakarta.persistence.OneToOne;
+import jakarta.persistence.ManyToOne;
 import jakarta.persistence.Table;
 import lombok.Getter;
 import lombok.Setter;
@@ -20,11 +20,12 @@ public class CertificateEntity {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     Long certificateId;
 
-    @OneToOne
-    @JoinColumn(name = "ca_id")
-    CaEntity ca;
+    @Column
+    Long caId;
 
-    Long signedCaId;
+    @ManyToOne
+    @JoinColumn(name = "signed_ca_id")
+    CaEntity signedCa;
 
     @Column
     String certificatePem;

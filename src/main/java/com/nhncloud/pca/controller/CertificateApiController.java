@@ -6,6 +6,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.nhncloud.pca.common.response.ApiResponse;
@@ -15,7 +16,7 @@ import com.nhncloud.pca.service.CertificateService;
 
 @Slf4j
 @RestController
-@RequestMapping("/certificate")
+@RequestMapping("/ca")
 public class CertificateApiController {
     private final CertificateService certificateService;
 
@@ -23,31 +24,15 @@ public class CertificateApiController {
         this.certificateService = certificateService;
     }
 
-    @PostMapping("/root")
-    public ResponseEntity<ApiResponse> createRootCertificate(@RequestBody RequestBodyForCreateCA requestBody) {
+    @PostMapping
+    public ResponseEntity<ApiResponse> createCa(@RequestBody RequestBodyForCreateCA requestBody, @RequestParam("caType") String caType, @RequestParam("caId") Long caId) {
         CertificateResult result;
         try {
-            result = certificateService.generateRootCertificate(requestBody);
+            result = certificateService.generateCa(requestBody, caType, caId);
         } catch (Exception e) {
-            //Exception 세분화 필요
-            //Handler ? 혹은 Controller에서 Exception 마다 처리?
-            log.error("msg", e);
             return ResponseEntity.ok(ApiResponse.fail(50000, e.getMessage()));
         }
-        return ResponseEntity.ok(ApiResponse.success(result));
-    }
 
-    @PostMapping("/intermediate")
-    public ResponseEntity<ApiResponse> createIntermediateCertificate(@RequestBody RequestBodyForCreateCA requestBody) {
-        CertificateResult result;
-        try {
-            result = certificateService.generateIntermediateCertificate(requestBody);
-        } catch (Exception e) {
-            //Exception 세분화 필요
-            //Handler ? 혹은 Controller에서 Exception 마다 처리?
-            log.error("msg", e);
-            return ResponseEntity.ok(ApiResponse.fail(50000, e.getMessage()));
-        }
         return ResponseEntity.ok(ApiResponse.success(result));
     }
 }

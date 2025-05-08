@@ -18,9 +18,11 @@ public class CertificateInfo {
 
     private String commonName;
     private String country;
+    private String stateOrProvince;
     private String locality;
-    private String stateProvince;
+    private String organizationalUnit;
     private String organization;
+    private String emailAddress;
 
     private String issuer;
 
@@ -41,8 +43,11 @@ public class CertificateInfo {
             .commonName(subjectInfo.getCommonName())
             .country(subjectInfo.getCountry())
             .locality(subjectInfo.getLocality())
-            .stateProvince(subjectInfo.getStateOrProvince())
+            .stateOrProvince(subjectInfo.getStateOrProvince())
+            .locality(subjectInfo.getLocality())
             .organization(subjectInfo.getOrganization())
+            .organizationalUnit(subjectInfo.getOrganizationalUnit())
+            .emailAddress(subjectInfo.getEmailAddress())
             .issuer(certificate.getIssuerX500Principal().getName())
             .notBeforeDateTime(certificate.getNotBefore().toInstant().atZone(ZoneId.systemDefault()).toLocalDateTime())
             .notAfterDateTime(certificate.getNotAfter().toInstant().atZone(ZoneId.systemDefault()).toLocalDateTime())
@@ -52,4 +57,5 @@ public class CertificateInfo {
             .signatureAlgorithm(certificate.getSigAlgName())
             .build();
     }
+
 }

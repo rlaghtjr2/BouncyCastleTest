@@ -1,5 +1,7 @@
 package com.nhncloud.pca.repository;
 
+import java.util.List;
+
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.jdbc.AutoConfigureTestDatabase;
@@ -22,26 +24,6 @@ public class CertificateRepositoryTest {
     @Autowired
     private CaRepository caRepository;
 
-    @Test
-    void test_findByCaIdAndCaType() {
-        CaEntity caEntity = new CaEntity();
-        caEntity.setType(CaType.ROOT.getType());
-        caEntity.setName("TEST_CA_NAME");
-
-        CertificateEntity certificate = new CertificateEntity();
-        certificate.setCertificatePem("TEST_CERTIFICATE_PEM");
-        certificate.setPrivateKeyPem("TEST_PRIVATE_KEY_PEM");
-        certificate.setCa(caEntity);
-        certificate.setSignedCaId(123456L);
-        caEntity.setCertificate(certificate);
-        certificate.setSignedCaId(123456L);
-        
-        CaEntity saveEntity = caRepository.save(caEntity);
-
-        CertificateEntity foundCertificate = certificateRepository.findByCa_CaIdAndCaType(saveEntity.getCaId(), CaType.ROOT.getType());
-
-        assertNotNull(foundCertificate);
-    }
 
     @Test
     void testSave() {
@@ -52,17 +34,17 @@ public class CertificateRepositoryTest {
         caEntity.setName("TEST_CA_NAME");
 
         CertificateEntity certificate = new CertificateEntity();
-        certificate.setCa(caEntity);
+        certificate.setSignedCa(caEntity);
         certificate.setCertificatePem("TEST_CERTIFICATE_PEM");
         certificate.setPrivateKeyPem("TEST_PRIVATE_KEY_PEM");
-        certificate.setSignedCaId(123456L);
+        caEntity.setSignedCertificates(List.of(certificate));
         // Save the entity
         CertificateEntity savedCertificate = certificateRepository.save(certificate);
 
         // Verify the entity is saved correctly
         assertNotNull(savedCertificate);
         assertNotNull(savedCertificate.getCertificateId());
-        assertEquals(123456L, savedCertificate.getCa().getCaId());
+        assertEquals(123456L, savedCertificate.getSignedCa().getCaId());
         assertEquals("TEST_CERTIFICATE_PEM", savedCertificate.getCertificatePem());
         assertEquals("TEST_PRIVATE_KEY_PEM", savedCertificate.getPrivateKeyPem());
     }
