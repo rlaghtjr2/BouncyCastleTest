@@ -20,7 +20,8 @@ import com.nhncloud.pca.mapper.CertificateMapper;
 import com.nhncloud.pca.mapper.CertificateMapperImpl;
 import com.nhncloud.pca.model.certificate.CertificateInfo;
 import com.nhncloud.pca.model.request.RequestBodyForCreateCA;
-import com.nhncloud.pca.model.response.CertificateResult;
+import com.nhncloud.pca.model.response.CaCreateResult;
+import com.nhncloud.pca.model.response.CertificateCreateResult;
 import com.nhncloud.pca.repository.CaRepository;
 import com.nhncloud.pca.repository.CertificateRepository;
 
@@ -61,7 +62,7 @@ public class CertificateServiceTest {
     public void test_rootCA_정상_생성() {
         when(caRepository.save(any())).thenReturn(new CaEntity());
 
-        CertificateResult result = service.generateCa(CommonTestUtil.createTestCertificateRequestBody(), "ROOT", null);
+        CaCreateResult result = service.generateCa(CommonTestUtil.createTestCertificateRequestBody(), "ROOT", null);
 
         System.out.println(result);
         assertNotNull(result);
@@ -92,10 +93,30 @@ public class CertificateServiceTest {
         ca.setSignedCertificates(List.of(certificate));
 
         when(caRepository.save(any())).thenReturn(new CaEntity());
-        when(certificateRepository.findByCaId(any())).thenReturn(Optional.of(certificate));
-        CertificateResult result = service.generateCa(CommonTestUtil.createTestCertificateRequestBody(), "SUB", 1L);
+        when(certificateRepository.findBySignedCa_CaId(any())).thenReturn(Optional.of(certificate));
+        CaCreateResult result = service.generateCa(CommonTestUtil.createTestCertificateRequestBody(), "SUB", 1L);
 
         System.out.println(result);
         assertNotNull(result);
+    }
+
+    @Test
+    public void test_generateLeaf인증서_정상_생성() throws Exception {
+        CertificateInfo certificateInfo = CommonTestUtil.createTestRootCaCertificateInfo();
+        CaEntity ca = new CaEntity();
+        ca.setName("TEST_CA_NAME");
+        ca.setType(CaType.ROOT.getType());
+        CertificateEntity certificate = new CertificateEntity();
+        certificate.setCertificatePem(certificateInfo.getCertificatePem());
+        certificate.setPrivateKeyPem(certificateInfo.getPrivateKeyPem());
+        certificate.setSignedCa(ca);
+        ca.setSignedCertificates(List.of(certificate));
+
+        when(certificateRepository.findBySignedCa_CaId(any())).thenReturn(Optional.of(certificate));
+
+        CertificateCreateResult result = service.generateCert(CommonTestUtil.createTestCertificateRequestBody(), 1L);
+        assertNotNull(result);
+
+        System.out.println(result);
     }
 }

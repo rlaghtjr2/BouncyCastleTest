@@ -7,5 +7,7 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import com.nhncloud.pca.entity.CertificateEntity;
 
 public interface CertificateRepository extends JpaRepository<CertificateEntity, Long> {
-    Optional<CertificateEntity> findByCaId(Long caId);
+    Optional<CertificateEntity> findByCa_CaId(Long caId);
+
+    Optional<CertificateEntity> findBySignedCa_CaId(Long caId);
 }

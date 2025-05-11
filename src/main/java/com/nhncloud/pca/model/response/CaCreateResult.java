@@ -10,7 +10,7 @@ import com.nhncloud.pca.model.certificate.CertificateInfo;
 
 @Data
 @Builder
-public class CertificateResult {
+public class CaCreateResult {
     private CaInfo caInfo;
 
     private CertificateInfo certificateInfo;
@@ -22,8 +22,8 @@ public class CertificateResult {
     private LocalDateTime lastChangeDatetime;
     private String lastChangeUser;
 
-    public static CertificateResult of(CaInfo caInfo, CertificateInfo caCertInfo, String caStatus) {
-        return CertificateResult.builder()
+    public static CaCreateResult of(CaInfo caInfo, CertificateInfo caCertInfo, String caStatus) {
+        return CaCreateResult.builder()
             .caInfo(caInfo)
             .certificateInfo(caCertInfo)
             .status(caStatus)

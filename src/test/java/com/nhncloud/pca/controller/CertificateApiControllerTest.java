@@ -8,7 +8,7 @@ import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 
 import com.nhncloud.pca.CommonTestUtil;
-import com.nhncloud.pca.model.response.CertificateResult;
+import com.nhncloud.pca.model.response.CaCreateResult;
 import com.nhncloud.pca.service.CertificateService;
 
 import static org.mockito.ArgumentMatchers.any;
@@ -30,9 +30,9 @@ public class CertificateApiControllerTest {
     @Test
     public void test_root_CA_생성() throws Exception {
 
-        CertificateResult certificateResult = CommonTestUtil.createTestCertificateResult_Root();
+        CaCreateResult caCreateResult = CommonTestUtil.createTestCertificateResult_Root();
 
-        when(certificateService.generateCa(any(), any(), any())).thenReturn(certificateResult);
+        when(certificateService.generateCa(any(), any(), any())).thenReturn(caCreateResult);
 
         String body = "{\n" +
             "  \"name\": \"ROOT CA NAME\",\n" +
@@ -67,8 +67,8 @@ public class CertificateApiControllerTest {
     @Test
     public void test_intermediate_CA_생성() throws Exception {
 
-        CertificateResult certificateResult = CommonTestUtil.createTestCertificateResult_Intermediate();
-        when(certificateService.generateCa(any(), any(), any())).thenReturn(certificateResult);
+        CaCreateResult caCreateResult = CommonTestUtil.createTestCertificateResult_Intermediate();
+        when(certificateService.generateCa(any(), any(), any())).thenReturn(caCreateResult);
 
         String body = "{\n" +
             "  \"name\": \"Intermediate CA NAME\",\n" +

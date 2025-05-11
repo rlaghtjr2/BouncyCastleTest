@@ -20,8 +20,9 @@ public class CertificateEntity {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     Long certificateId;
 
-    @Column
-    Long caId;
+    @ManyToOne
+    @JoinColumn(name = "ca_id", nullable = true)
+    CaEntity ca;
 
     @ManyToOne
     @JoinColumn(name = "signed_ca_id")

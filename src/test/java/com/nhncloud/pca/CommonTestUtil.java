@@ -27,7 +27,7 @@ import com.nhncloud.pca.model.ca.CaInfo;
 import com.nhncloud.pca.model.certificate.CertificateInfo;
 import com.nhncloud.pca.model.key.KeyInfo;
 import com.nhncloud.pca.model.request.RequestBodyForCreateCA;
-import com.nhncloud.pca.model.response.CertificateResult;
+import com.nhncloud.pca.model.response.CaCreateResult;
 import com.nhncloud.pca.model.subject.SubjectInfo;
 
 public class CommonTestUtil {
@@ -119,14 +119,14 @@ public class CommonTestUtil {
         return caInfo;
     }
 
-    public static CertificateResult createTestCertificateResult_Root() {
-        CertificateResult certificateResult = CertificateResult.of(
+    public static CaCreateResult createTestCertificateResult_Root() {
+        CaCreateResult caCreateResult = CaCreateResult.of(
             createTestCaInfo_Root(),
             createTestRootCaCertificateInfo(),
             TEST_CERTIFICATE_INFO_STATUS
         );
 
-        return certificateResult;
+        return caCreateResult;
     }
 
     public static CaInfo createTestCaInfo_Intermediate() {
@@ -134,14 +134,14 @@ public class CommonTestUtil {
         return caInfo;
     }
 
-    public static CertificateResult createTestCertificateResult_Intermediate() {
-        CertificateResult certificateResult = CertificateResult.of(
+    public static CaCreateResult createTestCertificateResult_Intermediate() {
+        CaCreateResult caCreateResult = CaCreateResult.of(
             createTestCaInfo_Intermediate(),
             createTestRootCaCertificateInfo(),
             TEST_CERTIFICATE_INFO_STATUS
         );
 
-        return certificateResult;
+        return caCreateResult;
     }
 
     public static X509Certificate generateSelfSignedCertificate() {

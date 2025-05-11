@@ -14,10 +14,16 @@ import java.security.cert.X509Certificate;
 import java.util.ArrayList;
 import java.util.Date;
 import java.util.List;
+import javax.security.auth.x500.X500Principal;
 
+import org.bouncycastle.asn1.x500.RDN;
 import org.bouncycastle.asn1.x500.X500Name;
+import org.bouncycastle.asn1.x500.X500NameBuilder;
+import org.bouncycastle.asn1.x500.style.BCStyle;
 import org.bouncycastle.asn1.x509.BasicConstraints;
+import org.bouncycastle.asn1.x509.ExtendedKeyUsage;
 import org.bouncycastle.asn1.x509.Extension;
+import org.bouncycastle.asn1.x509.KeyPurposeId;
 import org.bouncycastle.asn1.x509.KeyUsage;
 import org.bouncycastle.asn1.x509.SubjectPublicKeyInfo;
 import org.bouncycastle.cert.X509CertificateHolder;
@@ -44,7 +50,8 @@ import com.nhncloud.pca.model.certificate.CertificateInfo;
 import com.nhncloud.pca.model.key.KeyInfo;
 import com.nhncloud.pca.model.request.RequestBodyForCreateCA;
 import com.nhncloud.pca.model.request.RequestBodyForCreateCert;
-import com.nhncloud.pca.model.response.CertificateResult;
+import com.nhncloud.pca.model.response.CaCreateResult;
+import com.nhncloud.pca.model.response.CertificateCreateResult;
 import com.nhncloud.pca.model.subject.SubjectInfo;
 import com.nhncloud.pca.repository.CaRepository;
 import com.nhncloud.pca.repository.CertificateRepository;
@@ -76,7 +83,7 @@ public class CertificateServiceImpl implements CertificateService {
     }
 
     @Override
-    public CertificateResult generateCa(RequestBodyForCreateCA requestBody, String caType, Long caId) {
+    public CaCreateResult generateCa(RequestBodyForCreateCA requestBody, String caType, Long caId) {
         log.info("generateCa() = {}, caType = {}", requestBody, caType);
 
         //1. 인증서 생성에 사용할 Key 만들기
@@ -98,14 +105,15 @@ public class CertificateServiceImpl implements CertificateService {
         X509Certificate upperCertificate = null;
         if (caType.equals(CaType.SUB.getType())) {
             //3. Intermediate경우 signingKey와 Issuer가 달라짐
-            CertificateEntity upperCa = certificateRepository.findByCaId(caId).orElseThrow(() -> new RuntimeException("CA not found"));
+            CertificateEntity upperCa = certificateRepository.findByCa_CaId(caId).orElseThrow(() -> new RuntimeException("CA not found"));
             String upperPrivateKeyPem = upperCa.getPrivateKeyPem();
             String upperCertificatePem = upperCa.getCertificatePem();
             PrivateKey upperPrivateKey = CertificateUtil.parsePrivateKey(upperPrivateKeyPem);
             upperCertificate = CertificateUtil.parseCertificate(upperCertificatePem);
 
             signingKey = upperPrivateKey;
-            issuerName = new X500Name(upperCertificate.getSubjectX500Principal().getName());
+            issuerName = getReversedDistinguishedName(upperCertificate.getSubjectX500Principal());
+
         }
 
         // 4. Builder 생성
@@ -165,19 +173,123 @@ public class CertificateServiceImpl implements CertificateService {
         );
 
         // 9. Return값
-        CertificateResult result = CertificateResult.of(
+        CaCreateResult result = CaCreateResult.of(
             caInfo,
             caCertificateInfo,
             CaStatus.ACTIVE.getStatus()
         );
 
         // 10. DB에 저장
-
+        // 만들어진 CA
         CaEntity caEntity = caMapper.toEntity(result.getCaInfo());
         caEntity.setType(caType);
 
+        // 상위CA
+        CaEntity upperCaEntity = caEntity;
+        if (caType.equals(CaType.SUB.getType())) {
+            // SUB인경우 상위CA를 DB에서 불러옴
+            upperCaEntity = caRepository.findById(caId).orElseThrow(() -> new RuntimeException("CA not found"));
+        }
+
+        // 만들어진 인증서 정보
         CertificateEntity certificateEntity = certificateMapper.toEntity(result.getCertificateInfo());
-        caEntity.setSignedCertificates(List.of(certificateEntity));
+        // 상위 CA에 만들어진 인증서 정보 저장
+        if (upperCaEntity.getSignedCertificates() == null) {
+            upperCaEntity.setSignedCertificates(new ArrayList<>());
+        }
+        upperCaEntity.getSignedCertificates().add(certificateEntity);
+
+        certificateEntity.setSignedCa(upperCaEntity);
+        // CA 정보 저장
+        certificateEntity.setCa(caEntity);
+        caRepository.save(caEntity);
+        return result;
+    }
+
+    @Override
+    public CertificateCreateResult generateCert(RequestBodyForCreateCert requestBody, Long caId) throws Exception {
+        log.info("generateCert() = {}, caId = {}", requestBody, caId);
+
+        //1. 인증서 생성에 사용할 Key 만들기
+        KeyPair keyPair = generateKeyPair(requestBody.getKeyInfo());
+
+        //2. CSR 파일 생성
+        CertificateInfo certificateInfo = generateCsr(requestBody, keyPair);
+        String csrPem = certificateInfo.getCertificatePem();
+        PKCS10CertificationRequest csr = CertificateUtil.parseCsr(csrPem);
+
+        //3. 정보 세팅
+        SubjectInfo subjectInfo = requestBody.getSubjectInfo();
+
+        CertificateEntity upperCert = certificateRepository.findByCa_CaId(caId).orElseThrow(() -> new RuntimeException("Certificate not found"));
+        String upperPrivateKeyPem = upperCert.getPrivateKeyPem();
+        String upperCertificatePem = upperCert.getCertificatePem();
+        PrivateKey upperPrivateKey = CertificateUtil.parsePrivateKey(upperPrivateKeyPem);
+        X509Certificate upperCertificate = CertificateUtil.parseCertificate(upperCertificatePem);
+
+        PrivateKey signingKey = upperPrivateKey;
+        X500Name subjectName = new X500Name(subjectInfo.toDistinguishedName());
+        X500Name issuerName = getReversedDistinguishedName(upperCertificate.getSubjectX500Principal());
+
+
+        // 4. Builder 생성
+        X509v3CertificateBuilder certBuilder = getCertificateBuilder(
+            issuerName,
+            subjectName,
+            requestBody.getPeriod(),
+            csr.getSubjectPublicKeyInfo()
+        );
+
+        // 5. Extension 넣기
+        try {
+            List<CertificateExtension> extensions = new ArrayList<>();
+
+            // 기본 확장 필드
+            extensions.add(new CertificateExtension(Extension.basicConstraints, false, new BasicConstraints(false)));
+            extensions.add(new CertificateExtension(Extension.keyUsage, true, new KeyUsage(KeyUsage.digitalSignature | KeyUsage.keyEncipherment | KeyUsage.keyAgreement)));
+            certBuilder.addExtension(Extension.extendedKeyUsage, false,
+                new ExtendedKeyUsage(new KeyPurposeId[]{KeyPurposeId.id_kp_serverAuth, KeyPurposeId.id_kp_clientAuth}));
+            // Subject Key Identifier
+            extensions.add(new CertificateExtension(Extension.subjectKeyIdentifier, false,
+                new JcaX509ExtensionUtils().createSubjectKeyIdentifier(csr.getSubjectPublicKeyInfo())
+            ));
+            // Authority Key Identifier 추가
+            extensions.add(new CertificateExtension(Extension.authorityKeyIdentifier, false,
+                new JcaX509ExtensionUtils().createAuthorityKeyIdentifier(upperCertificate.getPublicKey())
+            ));
+            CertificateUtil.setCertificateExtensions(certBuilder, extensions);
+        } catch (NoSuchAlgorithmException e) {
+            throw new RuntimeException("Failed to add extensions", e);
+        }
+
+        // 6. 인증서 생성 - siningKey로  sign
+        X509Certificate certificate = getX509Certificate(certBuilder, signingKey);
+
+        // 7. 생성한 인증서 PEM 변환
+        String certificatePem = CertificateUtil.toPemString(certificate);
+        String privateKeyPem = CertificateUtil.toPemString(keyPair.getPrivate());
+
+        // 8. Return 객체 생성
+        CertificateCreateResult result = CertificateCreateResult.builder()
+            .serialNo(certificate.getSerialNumber().toString())
+            .certificatePem(certificatePem)
+            .privateKeyPem(privateKeyPem)
+            .issuer(upperCertificatePem)
+            .build();
+        // 8-2 인증서 정보
+        CertificateInfo generateCertInfo = CertificateInfo.of(
+            subjectInfo,
+            certificate,
+            requestBody.getKeyInfo(),
+            certificatePem,
+            privateKeyPem
+        );
+
+        // 10. DB에 저장
+        CaEntity caEntity = caRepository.findById(caId).orElseThrow(() -> new RuntimeException("CA not found"));
+
+        CertificateEntity certificateEntity = certificateMapper.toEntity(generateCertInfo);
+        caEntity.getSignedCertificates().add(certificateEntity);
         certificateEntity.setSignedCa(caEntity);
         caRepository.save(caEntity);
 
@@ -187,7 +299,6 @@ public class CertificateServiceImpl implements CertificateService {
     public CertificateInfo generateCsr(RequestBodyForCreateCert requestBody, KeyPair keyPair) {
         log.info("generateCsr() = {}", requestBody);
 
-        KeyInfo keyInfo = requestBody.getKeyInfo();
         SubjectInfo subjectInfo = requestBody.getSubjectInfo();
 
         // Subject 이름 설정
@@ -274,4 +385,19 @@ public class CertificateServiceImpl implements CertificateService {
         return keyGen.generateKeyPair();
 
     }
+
+    public X500Name getReversedDistinguishedName(X500Principal principal) {
+        if (principal == null) return null;
+
+        X500Name original = new X500Name(principal.getName("RFC2253"));
+        RDN[] rdns = original.getRDNs();
+
+        X500NameBuilder builder = new X500NameBuilder(BCStyle.INSTANCE);
+        for (int i = rdns.length - 1; i >= 0; i--) {
+            builder.addRDN(rdns[i].getFirst().getType(), rdns[i].getFirst().getValue());
+        }
+
+        return builder.build();
+    }
+
 }
