@@ -51,8 +51,10 @@ import com.nhncloud.pca.model.certificate.CertificateInfo;
 import com.nhncloud.pca.model.key.KeyInfo;
 import com.nhncloud.pca.model.request.RequestBodyForCreateCA;
 import com.nhncloud.pca.model.request.RequestBodyForCreateCert;
+import com.nhncloud.pca.model.request.RequestBodyForUpdateCA;
 import com.nhncloud.pca.model.response.CaCreateResult;
 import com.nhncloud.pca.model.response.CaReadResult;
+import com.nhncloud.pca.model.response.CaUpdateResult;
 import com.nhncloud.pca.model.response.CertificateCreateResult;
 import com.nhncloud.pca.model.subject.SubjectInfo;
 import com.nhncloud.pca.repository.CaRepository;
@@ -331,8 +333,25 @@ public class CertificateServiceImpl implements CertificateService {
         CaReadResult result = CaReadResult.of(
             caInfo,
             caCertificateInfo,
-            caInfo.getStatus().getStatus()
+            caInfo.getStatus()
         );
+
+        return result;
+    }
+
+    @Override
+    public CaUpdateResult updateCA(Long caId, RequestBodyForUpdateCA requestBody) {
+        log.info("updateCA() = {}", caId);
+        CaEntity caEntity = caRepository.findById(caId).orElseThrow(() -> new RuntimeException("CA not found"));
+        caEntity.setStatus(requestBody.getStatus());
+        
+        CaEntity saveEntity = caRepository.save(caEntity);
+
+        CaInfo caInfo = caMapper.toDto(saveEntity);
+
+        CaUpdateResult result = CaUpdateResult.builder()
+            .caInfo(caInfo)
+            .build();
 
         return result;
     }

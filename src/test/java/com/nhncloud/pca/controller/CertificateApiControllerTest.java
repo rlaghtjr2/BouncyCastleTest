@@ -10,12 +10,14 @@ import org.springframework.test.web.servlet.MockMvc;
 import com.nhncloud.pca.CommonTestUtil;
 import com.nhncloud.pca.model.response.CaCreateResult;
 import com.nhncloud.pca.model.response.CaReadResult;
+import com.nhncloud.pca.model.response.CaUpdateResult;
 import com.nhncloud.pca.service.CertificateService;
 
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -114,5 +116,23 @@ public class CertificateApiControllerTest {
             .andExpect(status().isOk())
             .andExpect(jsonPath("$.header.isSuccessful").value(true))
             .andExpect(jsonPath("$.body.certificateInfo.certificateId").value("1234"));
+    }
+
+    @Test
+    public void test_CA_상태변경() throws Exception {
+
+        CaUpdateResult caUpdateResult = CommonTestUtil.createTestCertificateResult_Update();
+        when(certificateService.updateCA(any(), any())).thenReturn(caUpdateResult);
+
+        String body = "{\n" +
+            "  \"status\": \"INACTIVE\"\n" +
+            "  }\n" +
+            "}";
+        mockMvc.perform(put("/ca/1")
+                .contentType("application/json")
+                .content(body))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.header.isSuccessful").value(true))
+            .andExpect(jsonPath("$.body.caInfo.status").value("INACTIVE"));
     }
 }

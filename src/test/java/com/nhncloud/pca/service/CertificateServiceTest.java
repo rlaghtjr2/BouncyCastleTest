@@ -11,6 +11,7 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
 import com.nhncloud.pca.CommonTestUtil;
+import com.nhncloud.pca.constant.CaStatus;
 import com.nhncloud.pca.constant.CaType;
 import com.nhncloud.pca.entity.CaEntity;
 import com.nhncloud.pca.entity.CertificateEntity;
@@ -22,6 +23,7 @@ import com.nhncloud.pca.model.certificate.CertificateInfo;
 import com.nhncloud.pca.model.request.RequestBodyForCreateCA;
 import com.nhncloud.pca.model.response.CaCreateResult;
 import com.nhncloud.pca.model.response.CaReadResult;
+import com.nhncloud.pca.model.response.CaUpdateResult;
 import com.nhncloud.pca.model.response.CertificateCreateResult;
 import com.nhncloud.pca.repository.CaRepository;
 import com.nhncloud.pca.repository.CertificateRepository;
@@ -131,5 +133,18 @@ public class CertificateServiceTest {
         assertEquals(result.getCaInfo().getName(), CommonTestUtil.TEST_CA_INFO_NAME);
         assertEquals(result.getCaInfo().getType(), CaType.ROOT.getType());
         assertEquals(result.getCaInfo().getCaId(), CommonTestUtil.TEST_CA_INFO_ID);
+    }
+
+    @Test
+    public void test_CA_업데이트_성공() {
+        CaEntity ca = CommonTestUtil.createTestCaEntity();
+        CaEntity saveCa = CommonTestUtil.createTestCaEntity();
+        saveCa.setStatus(CaStatus.INACTIVE);
+        when(caRepository.findById(any())).thenReturn(Optional.of(ca));
+        when(caRepository.save(any())).thenReturn(saveCa);
+
+        CaUpdateResult result = service.updateCA(1L, CommonTestUtil.createTestCertificateRequestBodyForUpdate());
+        assertNotNull(result);
+        assertEquals(result.getCaInfo().getStatus(), CaStatus.INACTIVE);
     }
 }

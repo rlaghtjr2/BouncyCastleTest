@@ -30,8 +30,10 @@ import com.nhncloud.pca.model.ca.CaInfo;
 import com.nhncloud.pca.model.certificate.CertificateInfo;
 import com.nhncloud.pca.model.key.KeyInfo;
 import com.nhncloud.pca.model.request.RequestBodyForCreateCA;
+import com.nhncloud.pca.model.request.RequestBodyForUpdateCA;
 import com.nhncloud.pca.model.response.CaCreateResult;
 import com.nhncloud.pca.model.response.CaReadResult;
+import com.nhncloud.pca.model.response.CaUpdateResult;
 import com.nhncloud.pca.model.subject.SubjectInfo;
 
 public class CommonTestUtil {
@@ -65,7 +67,7 @@ public class CommonTestUtil {
     public static final String TEST_CA_INFO_NAME = "Test CA";
     public static final String TEST_CA_INFO_TYPE = CaType.ROOT.getType();
 
-    public static final String TEST_CERTIFICATE_INFO_STATUS = "ACTIVE";
+    public static final CaStatus TEST_CERTIFICATE_INFO_STATUS = CaStatus.ACTIVE;
     public static final String TEST_CERTIFICATE_INFO_CREATION_DATETIME = "2023-10-01T00:00:00";
 
     public static final String ROOT_CA_CERT_PEM;
@@ -181,6 +183,15 @@ public class CommonTestUtil {
         return certificateEntity;
     }
 
+    public static CaUpdateResult createTestCertificateResult_Update() {
+        CaUpdateResult caUpdateResult = CaUpdateResult.builder()
+            .caInfo(createTestCaInfo_Intermediate())
+            .build();
+
+        caUpdateResult.getCaInfo().setStatus(CaStatus.INACTIVE);
+        return caUpdateResult;
+    }
+
     public static X509Certificate generateSelfSignedCertificate() {
         Security.addProvider(new BouncyCastleProvider());
         // KeyPair 생성
@@ -225,5 +236,11 @@ public class CommonTestUtil {
         } catch (CertificateException e) {
             throw new RuntimeException(e);
         }
+    }
+
+    public static RequestBodyForUpdateCA createTestCertificateRequestBodyForUpdate() {
+        RequestBodyForUpdateCA requestBody = new RequestBodyForUpdateCA();
+        requestBody.setStatus(CaStatus.INACTIVE);
+        return requestBody;
     }
 }

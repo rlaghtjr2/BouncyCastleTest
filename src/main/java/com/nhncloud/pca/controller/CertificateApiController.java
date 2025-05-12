@@ -7,6 +7,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
@@ -15,8 +16,10 @@ import org.springframework.web.bind.annotation.RestController;
 import com.nhncloud.pca.common.response.ApiResponse;
 import com.nhncloud.pca.model.request.RequestBodyForCreateCA;
 import com.nhncloud.pca.model.request.RequestBodyForCreateCert;
+import com.nhncloud.pca.model.request.RequestBodyForUpdateCA;
 import com.nhncloud.pca.model.response.CaCreateResult;
 import com.nhncloud.pca.model.response.CaReadResult;
+import com.nhncloud.pca.model.response.CaUpdateResult;
 import com.nhncloud.pca.model.response.CertificateCreateResult;
 import com.nhncloud.pca.service.CertificateService;
 
@@ -56,6 +59,12 @@ public class CertificateApiController {
     @GetMapping("/{caId}")
     public ResponseEntity<ApiResponse> getCA(@PathVariable("caId") Long caId) {
         CaReadResult result = certificateService.getCA(caId);
+        return ResponseEntity.ok(ApiResponse.success(result));
+    }
+
+    @PutMapping("/{caId}")
+    public ResponseEntity<ApiResponse> updateCA(@PathVariable("caId") Long caId, @RequestBody RequestBodyForUpdateCA requestBody) {
+        CaUpdateResult result = certificateService.updateCA(caId, requestBody);
         return ResponseEntity.ok(ApiResponse.success(result));
     }
 }
