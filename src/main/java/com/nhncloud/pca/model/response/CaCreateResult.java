@@ -5,6 +5,7 @@ import lombok.Data;
 
 import java.time.LocalDateTime;
 
+import com.nhncloud.pca.constant.CaStatus;
 import com.nhncloud.pca.model.ca.CaInfo;
 import com.nhncloud.pca.model.certificate.CertificateInfo;
 
@@ -15,14 +16,14 @@ public class CaCreateResult {
 
     private CertificateInfo certificateInfo;
 
-    private String status;
+    private CaStatus status;
 
     private LocalDateTime creationDatetime;
     private String creationUser;
     private LocalDateTime lastChangeDatetime;
     private String lastChangeUser;
 
-    public static CaCreateResult of(CaInfo caInfo, CertificateInfo caCertInfo, String caStatus) {
+    public static CaCreateResult of(CaInfo caInfo, CertificateInfo caCertInfo, CaStatus caStatus) {
         return CaCreateResult.builder()
             .caInfo(caInfo)
             .certificateInfo(caCertInfo)

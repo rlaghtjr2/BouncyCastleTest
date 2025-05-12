@@ -3,6 +3,8 @@ package com.nhncloud.pca.entity;
 import jakarta.persistence.CascadeType;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
+import jakarta.persistence.EnumType;
+import jakarta.persistence.Enumerated;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
@@ -13,6 +15,8 @@ import lombok.Getter;
 import lombok.Setter;
 
 import java.util.List;
+
+import com.nhncloud.pca.constant.CaStatus;
 
 @Entity
 @Getter
@@ -28,6 +32,9 @@ public class CaEntity {
 
     @Column
     String type;
+
+    @Enumerated(EnumType.STRING)
+    CaStatus status;
 
     @OneToMany(mappedBy = "signedCa", cascade = CascadeType.ALL)
     List<CertificateEntity> signedCertificates;

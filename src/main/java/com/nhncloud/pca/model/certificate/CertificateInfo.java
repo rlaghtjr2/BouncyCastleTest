@@ -7,6 +7,7 @@ import java.security.cert.X509Certificate;
 import java.time.LocalDateTime;
 import java.time.ZoneId;
 
+import com.nhncloud.pca.constant.CaStatus;
 import com.nhncloud.pca.model.key.KeyInfo;
 import com.nhncloud.pca.model.subject.SubjectInfo;
 
@@ -36,9 +37,10 @@ public class CertificateInfo {
     private String publicKeyAlgorithm;
     private String signatureAlgorithm;
 
-    public static CertificateInfo of(SubjectInfo subjectInfo, X509Certificate certificate, KeyInfo keyInfo, String certPem, String privateKeyPem) {
+    private CaStatus status;
+
+    public static CertificateInfo of(SubjectInfo subjectInfo, X509Certificate certificate, KeyInfo keyInfo, String certPem, String privateKeyPem, CaStatus status) {
         return CertificateInfo.builder()
-            .certificateId(1234L)
             .serialNumber(certificate.getSerialNumber().toString())
             .commonName(subjectInfo.getCommonName())
             .country(subjectInfo.getCountry())
@@ -55,6 +57,7 @@ public class CertificateInfo {
             .privateKeyPem(privateKeyPem)
             .publicKeyAlgorithm(keyInfo.getAlgorithm() + keyInfo.getKeySize())
             .signatureAlgorithm(certificate.getSigAlgName())
+            .status(status)
             .build();
     }
 

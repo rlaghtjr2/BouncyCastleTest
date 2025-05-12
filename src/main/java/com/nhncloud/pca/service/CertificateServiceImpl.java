@@ -163,7 +163,7 @@ public class CertificateServiceImpl implements CertificateService {
 
         // 8. Return 객체 생성
         // 8-1 Ca 정보
-        CaInfo caInfo = CaInfo.of(requestBody, caType);
+        CaInfo caInfo = CaInfo.of(requestBody, caType, CaStatus.ACTIVE);
 
         // 8-2 인증서 정보
         CertificateInfo caCertificateInfo = CertificateInfo.of(
@@ -171,14 +171,15 @@ public class CertificateServiceImpl implements CertificateService {
             certificate,
             requestBody.getKeyInfo(),
             certificatePem,
-            privateKeyPem
+            privateKeyPem,
+            CaStatus.ACTIVE
         );
 
         // 9. Return값
         CaCreateResult result = CaCreateResult.of(
             caInfo,
             caCertificateInfo,
-            CaStatus.ACTIVE.getStatus()
+            CaStatus.ACTIVE
         );
 
         // 10. DB에 저장
@@ -205,6 +206,9 @@ public class CertificateServiceImpl implements CertificateService {
         // CA 정보 저장
         certificateEntity.setCa(caEntity);
         caRepository.save(caEntity);
+
+        result.getCertificateInfo().setCertificateId(certificateEntity.getCertificateId());
+        result.getCaInfo().setCaId(caEntity.getCaId());
         return result;
     }
 
@@ -284,7 +288,8 @@ public class CertificateServiceImpl implements CertificateService {
             certificate,
             requestBody.getKeyInfo(),
             certificatePem,
-            privateKeyPem
+            privateKeyPem,
+            CaStatus.ACTIVE
         );
 
         // 10. DB에 저장
@@ -294,7 +299,6 @@ public class CertificateServiceImpl implements CertificateService {
         caEntity.getSignedCertificates().add(certificateEntity);
         certificateEntity.setSignedCa(caEntity);
         caRepository.save(caEntity);
-
         return result;
     }
 
@@ -320,13 +324,14 @@ public class CertificateServiceImpl implements CertificateService {
             certificate,
             keyInfo,
             caEntity.getCertificate().getCertificatePem(),
-            caEntity.getCertificate().getPrivateKeyPem()
+            caEntity.getCertificate().getPrivateKeyPem(),
+            caEntity.getCertificate().getStatus()
         );
-
+        caCertificateInfo.setCertificateId(caEntity.getCertificate().getCertificateId());
         CaReadResult result = CaReadResult.of(
             caInfo,
             caCertificateInfo,
-            "ACTIVE"
+            caInfo.getStatus().getStatus()
         );
 
         return result;

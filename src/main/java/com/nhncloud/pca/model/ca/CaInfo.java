@@ -3,6 +3,7 @@ package com.nhncloud.pca.model.ca;
 import lombok.Builder;
 import lombok.Data;
 
+import com.nhncloud.pca.constant.CaStatus;
 import com.nhncloud.pca.model.request.RequestBodyForCreateCA;
 
 @Data
@@ -11,12 +12,13 @@ public class CaInfo {
     private String name;
     private Long caId;
     private String type;
+    private CaStatus status;
 
-    public static CaInfo of(RequestBodyForCreateCA request, String type) {
+    public static CaInfo of(RequestBodyForCreateCA request, String type, CaStatus status) {
         return CaInfo.builder()
             .name(request.getName())
-            .caId(1234L)
             .type(type)
+            .status(status)
             .build();
     }
 }

@@ -22,6 +22,7 @@ import org.bouncycastle.operator.ContentSigner;
 import org.bouncycastle.operator.OperatorCreationException;
 import org.bouncycastle.operator.jcajce.JcaContentSignerBuilder;
 
+import com.nhncloud.pca.constant.CaStatus;
 import com.nhncloud.pca.constant.CaType;
 import com.nhncloud.pca.entity.CaEntity;
 import com.nhncloud.pca.entity.CertificateEntity;
@@ -113,13 +114,14 @@ public class CommonTestUtil {
             generateSelfSignedCertificate(),
             createTestKeyInfo(),
             ROOT_CA_CERT_PEM,
-            ROOT_CA_KEY_PEM
+            ROOT_CA_KEY_PEM,
+            CaStatus.ACTIVE
         );
         return certificateInfo;
     }
 
     public static CaInfo createTestCaInfo_Root() {
-        CaInfo caInfo = CaInfo.of(createTestCertificateRequestBody(), CaType.ROOT.getType());
+        CaInfo caInfo = CaInfo.of(createTestCertificateRequestBody(), CaType.ROOT.getType(), CaStatus.ACTIVE);
         return caInfo;
     }
 
@@ -134,7 +136,7 @@ public class CommonTestUtil {
     }
 
     public static CaInfo createTestCaInfo_Intermediate() {
-        CaInfo caInfo = CaInfo.of(createTestCertificateRequestBody(), CaType.SUB.getType());
+        CaInfo caInfo = CaInfo.of(createTestCertificateRequestBody(), CaType.SUB.getType(), CaStatus.ACTIVE);
         return caInfo;
     }
 
