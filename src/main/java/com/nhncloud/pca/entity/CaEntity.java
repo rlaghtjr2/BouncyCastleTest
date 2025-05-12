@@ -7,6 +7,7 @@ import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.OneToMany;
+import jakarta.persistence.OneToOne;
 import jakarta.persistence.Table;
 import lombok.Getter;
 import lombok.Setter;
@@ -31,4 +32,6 @@ public class CaEntity {
     @OneToMany(mappedBy = "signedCa", cascade = CascadeType.ALL)
     List<CertificateEntity> signedCertificates;
 
+    @OneToOne(mappedBy = "ca", cascade = CascadeType.ALL)
+    CertificateEntity certificate;
 }

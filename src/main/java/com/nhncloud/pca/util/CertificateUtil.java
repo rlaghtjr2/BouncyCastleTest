@@ -10,6 +10,9 @@ import java.security.cert.X509Certificate;
 import java.util.List;
 
 import org.bouncycastle.asn1.pkcs.PrivateKeyInfo;
+import org.bouncycastle.asn1.x500.RDN;
+import org.bouncycastle.asn1.x500.X500Name;
+import org.bouncycastle.asn1.x500.style.BCStyle;
 import org.bouncycastle.cert.CertIOException;
 import org.bouncycastle.cert.X509CertificateHolder;
 import org.bouncycastle.cert.X509v3CertificateBuilder;
@@ -21,6 +24,7 @@ import org.bouncycastle.openssl.jcajce.JcaPEMWriter;
 import org.bouncycastle.pkcs.PKCS10CertificationRequest;
 
 import com.nhncloud.pca.model.certificate.CertificateExtension;
+import com.nhncloud.pca.model.subject.SubjectInfo;
 
 public class CertificateUtil {
     public static String toPemString(Object pemObject) {
@@ -32,7 +36,7 @@ public class CertificateUtil {
         }
         return stringWriter.toString();
     }
-    
+
     public static void setCertificateExtensions(X509v3CertificateBuilder certBuilder, List<CertificateExtension> extensions) {
         for (CertificateExtension extension : extensions) {
             try {
@@ -89,4 +93,28 @@ public class CertificateUtil {
             throw new RuntimeException("new PEMParser() = [IOException]");
         }
     }
+
+    public static SubjectInfo parseDnWithBouncyCastle(String dn) {
+        X500Name x500Name = new X500Name(dn);
+        SubjectInfo info = new SubjectInfo();
+
+        info.setCommonName(getValue(x500Name, BCStyle.CN));
+        info.setCountry(getValue(x500Name, BCStyle.C));
+        info.setStateOrProvince(getValue(x500Name, BCStyle.ST));
+        info.setLocality(getValue(x500Name, BCStyle.L));
+        info.setOrganizationalUnit(getValue(x500Name, BCStyle.OU));
+        info.setOrganization(getValue(x500Name, BCStyle.O));
+        info.setEmailAddress(getValue(x500Name, BCStyle.EmailAddress));
+
+        return info;
+    }
+
+    private static String getValue(X500Name x500Name, org.bouncycastle.asn1.ASN1ObjectIdentifier identifier) {
+        RDN[] rdns = x500Name.getRDNs(identifier);
+        if (rdns != null && rdns.length > 0 && rdns[0].getFirst() != null) {
+            return rdns[0].getFirst().getValue().toString();
+        }
+        return null;
+    }
+
 }

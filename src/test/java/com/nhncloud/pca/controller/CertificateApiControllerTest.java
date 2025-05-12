@@ -9,10 +9,12 @@ import org.springframework.test.web.servlet.MockMvc;
 
 import com.nhncloud.pca.CommonTestUtil;
 import com.nhncloud.pca.model.response.CaCreateResult;
+import com.nhncloud.pca.model.response.CaReadResult;
 import com.nhncloud.pca.service.CertificateService;
 
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.when;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -95,6 +97,20 @@ public class CertificateApiControllerTest {
                 .param("caId", "1")
                 .contentType("application/json")
                 .content(body))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.header.isSuccessful").value(true))
+            .andExpect(jsonPath("$.body.certificateInfo.certificateId").value("1234"));
+    }
+
+    @Test
+    public void test_CA_조회() throws Exception {
+
+        CaReadResult caCreateResult = CommonTestUtil.createTestCertificateResult_Read();
+        when(certificateService.getCA(any())).thenReturn(caCreateResult);
+
+        mockMvc.perform(get("/ca/1")
+                .param("caType", "SUB")
+                .contentType("application/json"))
             .andExpect(status().isOk())
             .andExpect(jsonPath("$.header.isSuccessful").value(true))
             .andExpect(jsonPath("$.body.certificateInfo.certificateId").value("1234"));

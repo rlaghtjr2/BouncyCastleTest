@@ -53,7 +53,7 @@ public class CertificateInfo {
             .notAfterDateTime(certificate.getNotAfter().toInstant().atZone(ZoneId.systemDefault()).toLocalDateTime())
             .certificatePem(certPem)
             .privateKeyPem(privateKeyPem)
-            .publicKeyAlgorithm(keyInfo.getAlgorithm())
+            .publicKeyAlgorithm(keyInfo.getAlgorithm() + keyInfo.getKeySize())
             .signatureAlgorithm(certificate.getSigAlgName())
             .build();
     }

@@ -11,6 +11,7 @@ import java.security.PrivateKey;
 import java.security.Security;
 import java.security.cert.CertificateException;
 import java.security.cert.X509Certificate;
+import java.security.interfaces.RSAPublicKey;
 import java.util.ArrayList;
 import java.util.Date;
 import java.util.List;
@@ -51,6 +52,7 @@ import com.nhncloud.pca.model.key.KeyInfo;
 import com.nhncloud.pca.model.request.RequestBodyForCreateCA;
 import com.nhncloud.pca.model.request.RequestBodyForCreateCert;
 import com.nhncloud.pca.model.response.CaCreateResult;
+import com.nhncloud.pca.model.response.CaReadResult;
 import com.nhncloud.pca.model.response.CertificateCreateResult;
 import com.nhncloud.pca.model.subject.SubjectInfo;
 import com.nhncloud.pca.repository.CaRepository;
@@ -292,6 +294,40 @@ public class CertificateServiceImpl implements CertificateService {
         caEntity.getSignedCertificates().add(certificateEntity);
         certificateEntity.setSignedCa(caEntity);
         caRepository.save(caEntity);
+
+        return result;
+    }
+
+    @Override
+    public CaReadResult getCA(Long caId) {
+        log.info("getCA() = {}", caId);
+        CaEntity caEntity = caRepository.findById(caId).orElseThrow(() -> new RuntimeException("CA not found"));
+        CaInfo caInfo = caMapper.toDto(caEntity);
+
+        X509Certificate certificate = CertificateUtil.parseCertificate(caEntity.getCertificate().getCertificatePem());
+        SubjectInfo subjectInfo = CertificateUtil.parseDnWithBouncyCastle(certificate.getSubjectX500Principal().toString());
+
+        String algorithm = certificate.getPublicKey().getAlgorithm();
+        RSAPublicKey rsaKey = (RSAPublicKey) certificate.getPublicKey();
+        int keySize = rsaKey.getModulus().bitLength();
+        KeyInfo keyInfo = KeyInfo.builder()
+            .algorithm(algorithm)
+            .keySize(keySize)
+            .build();
+
+        CertificateInfo caCertificateInfo = CertificateInfo.of(
+            subjectInfo,
+            certificate,
+            keyInfo,
+            caEntity.getCertificate().getCertificatePem(),
+            caEntity.getCertificate().getPrivateKeyPem()
+        );
+
+        CaReadResult result = CaReadResult.of(
+            caInfo,
+            caCertificateInfo,
+            "ACTIVE"
+        );
 
         return result;
     }

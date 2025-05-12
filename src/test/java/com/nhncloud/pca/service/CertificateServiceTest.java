@@ -21,6 +21,7 @@ import com.nhncloud.pca.mapper.CertificateMapperImpl;
 import com.nhncloud.pca.model.certificate.CertificateInfo;
 import com.nhncloud.pca.model.request.RequestBodyForCreateCA;
 import com.nhncloud.pca.model.response.CaCreateResult;
+import com.nhncloud.pca.model.response.CaReadResult;
 import com.nhncloud.pca.model.response.CertificateCreateResult;
 import com.nhncloud.pca.repository.CaRepository;
 import com.nhncloud.pca.repository.CertificateRepository;
@@ -118,5 +119,17 @@ public class CertificateServiceTest {
         assertNotNull(result);
 
         System.out.println(result);
+    }
+
+    @Test
+    public void test_인증서_조회() {
+        CaEntity ca = CommonTestUtil.createTestCaEntity();
+        when(caRepository.findById(any())).thenReturn(Optional.of(ca));
+
+        CaReadResult result = service.getCA(1L);
+        assertNotNull(result);
+        assertEquals(result.getCaInfo().getName(), CommonTestUtil.TEST_CA_INFO_NAME);
+        assertEquals(result.getCaInfo().getType(), CaType.ROOT.getType());
+        assertEquals(result.getCaInfo().getCaId(), CommonTestUtil.TEST_CA_INFO_ID);
     }
 }

@@ -10,13 +10,13 @@ import com.nhncloud.pca.model.request.RequestBodyForCreateCA;
 public class CaInfo {
     private String name;
     private Long caId;
-    private String caType;
+    private String type;
 
-    public static CaInfo of(RequestBodyForCreateCA request, String caType) {
+    public static CaInfo of(RequestBodyForCreateCA request, String type) {
         return CaInfo.builder()
             .name(request.getName())
             .caId(1234L)
-            .caType(caType)
+            .type(type)
             .build();
     }
 }

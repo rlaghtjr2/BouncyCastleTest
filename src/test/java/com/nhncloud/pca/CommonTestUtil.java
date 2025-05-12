@@ -23,11 +23,14 @@ import org.bouncycastle.operator.OperatorCreationException;
 import org.bouncycastle.operator.jcajce.JcaContentSignerBuilder;
 
 import com.nhncloud.pca.constant.CaType;
+import com.nhncloud.pca.entity.CaEntity;
+import com.nhncloud.pca.entity.CertificateEntity;
 import com.nhncloud.pca.model.ca.CaInfo;
 import com.nhncloud.pca.model.certificate.CertificateInfo;
 import com.nhncloud.pca.model.key.KeyInfo;
 import com.nhncloud.pca.model.request.RequestBodyForCreateCA;
 import com.nhncloud.pca.model.response.CaCreateResult;
+import com.nhncloud.pca.model.response.CaReadResult;
 import com.nhncloud.pca.model.subject.SubjectInfo;
 
 public class CommonTestUtil {
@@ -86,9 +89,10 @@ public class CommonTestUtil {
     }
 
     public static KeyInfo createTestKeyInfo() {
-        KeyInfo keyInfo = new KeyInfo();
-        keyInfo.setAlgorithm(TEST_KEY_INFO_ALGORITHM);
-        keyInfo.setKeySize(TEST_KEY_INFO_KEY_SIZE);
+        KeyInfo keyInfo = KeyInfo.builder()
+            .algorithm(TEST_KEY_INFO_ALGORITHM)
+            .keySize(TEST_KEY_INFO_KEY_SIZE)
+            .build();
         return keyInfo;
     }
 
@@ -142,6 +146,37 @@ public class CommonTestUtil {
         );
 
         return caCreateResult;
+    }
+
+    public static CaReadResult createTestCertificateResult_Read() {
+        CaReadResult caCreateResult = CaReadResult.of(
+            createTestCaInfo_Intermediate(),
+            createTestRootCaCertificateInfo(),
+            TEST_CERTIFICATE_INFO_STATUS
+        );
+
+        return caCreateResult;
+    }
+
+    public static CaEntity createTestCaEntity() {
+        CaEntity caEntity = new CaEntity();
+        caEntity.setCaId(TEST_CA_INFO_ID);
+        caEntity.setName(TEST_CA_INFO_NAME);
+        caEntity.setType(TEST_CA_INFO_TYPE);
+
+        CertificateEntity certificateEntity = createTestCertificateEntity();
+        caEntity.setCertificate(certificateEntity);
+
+        return caEntity;
+    }
+
+    public static CertificateEntity createTestCertificateEntity() {
+        CertificateEntity certificateEntity = new CertificateEntity();
+        certificateEntity.setCertificateId(TEST_CERTIFICATE_INFO_ID);
+        certificateEntity.setCertificatePem(TEST_CERTIFICATE_INFO_CERTIFICATE_PEM);
+        certificateEntity.setCertificatePem(ROOT_CA_CERT_PEM);
+        certificateEntity.setPrivateKeyPem(ROOT_CA_KEY_PEM);
+        return certificateEntity;
     }
 
     public static X509Certificate generateSelfSignedCertificate() {

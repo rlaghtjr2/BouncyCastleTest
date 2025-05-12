@@ -4,6 +4,7 @@ import jakarta.annotation.Nullable;
 import lombok.extern.slf4j.Slf4j;
 
 import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
@@ -15,6 +16,7 @@ import com.nhncloud.pca.common.response.ApiResponse;
 import com.nhncloud.pca.model.request.RequestBodyForCreateCA;
 import com.nhncloud.pca.model.request.RequestBodyForCreateCert;
 import com.nhncloud.pca.model.response.CaCreateResult;
+import com.nhncloud.pca.model.response.CaReadResult;
 import com.nhncloud.pca.model.response.CertificateCreateResult;
 import com.nhncloud.pca.service.CertificateService;
 
@@ -49,5 +51,11 @@ public class CertificateApiController {
             return ResponseEntity.ok(ApiResponse.fail(50000, e.getMessage()));
         }
         return ResponseEntity.ok(ApiResponse.success(ApiResponse.success(result)));
+    }
+
+    @GetMapping("/{caId}")
+    public ResponseEntity<ApiResponse> getCA(@PathVariable("caId") Long caId) {
+        CaReadResult result = certificateService.getCA(caId);
+        return ResponseEntity.ok(ApiResponse.success(result));
     }
 }
