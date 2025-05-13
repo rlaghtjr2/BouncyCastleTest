@@ -7,6 +7,7 @@ import com.nhncloud.pca.model.response.CaCreateResult;
 import com.nhncloud.pca.model.response.CaReadResult;
 import com.nhncloud.pca.model.response.CaUpdateResult;
 import com.nhncloud.pca.model.response.CertificateCreateResult;
+import com.nhncloud.pca.model.response.ChainCaReadResult;
 
 public interface CertificateService {
     CaCreateResult generateCa(RequestBodyForCreateCA requestBody, String caType, Long caId) throws Exception;
@@ -16,4 +17,6 @@ public interface CertificateService {
     CaReadResult getCA(Long caId);
 
     CaUpdateResult updateCA(Long caId, RequestBodyForUpdateCA requestBody);
+
+    ChainCaReadResult getCAChain(Long caId);
 }

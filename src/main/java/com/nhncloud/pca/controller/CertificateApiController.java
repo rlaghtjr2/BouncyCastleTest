@@ -21,6 +21,7 @@ import com.nhncloud.pca.model.response.CaCreateResult;
 import com.nhncloud.pca.model.response.CaReadResult;
 import com.nhncloud.pca.model.response.CaUpdateResult;
 import com.nhncloud.pca.model.response.CertificateCreateResult;
+import com.nhncloud.pca.model.response.ChainCaReadResult;
 import com.nhncloud.pca.service.CertificateService;
 
 @Slf4j
@@ -65,6 +66,12 @@ public class CertificateApiController {
     @PutMapping("/{caId}")
     public ResponseEntity<ApiResponse> updateCA(@PathVariable("caId") Long caId, @RequestBody RequestBodyForUpdateCA requestBody) {
         CaUpdateResult result = certificateService.updateCA(caId, requestBody);
+        return ResponseEntity.ok(ApiResponse.success(result));
+    }
+
+    @GetMapping("/{caId}/chain")
+    public ResponseEntity<ApiResponse> getCAChain(@PathVariable("caId") Long caId) {
+        ChainCaReadResult result = certificateService.getCAChain(caId);
         return ResponseEntity.ok(ApiResponse.success(result));
     }
 }

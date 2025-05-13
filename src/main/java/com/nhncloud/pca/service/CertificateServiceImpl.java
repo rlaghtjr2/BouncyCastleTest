@@ -15,6 +15,7 @@ import java.security.interfaces.RSAPublicKey;
 import java.util.ArrayList;
 import java.util.Date;
 import java.util.List;
+import java.util.stream.Collectors;
 import javax.security.auth.x500.X500Principal;
 
 import org.bouncycastle.asn1.x500.RDN;
@@ -56,6 +57,7 @@ import com.nhncloud.pca.model.response.CaCreateResult;
 import com.nhncloud.pca.model.response.CaReadResult;
 import com.nhncloud.pca.model.response.CaUpdateResult;
 import com.nhncloud.pca.model.response.CertificateCreateResult;
+import com.nhncloud.pca.model.response.ChainCaReadResult;
 import com.nhncloud.pca.model.subject.SubjectInfo;
 import com.nhncloud.pca.repository.CaRepository;
 import com.nhncloud.pca.repository.CertificateRepository;
@@ -344,7 +346,7 @@ public class CertificateServiceImpl implements CertificateService {
         log.info("updateCA() = {}", caId);
         CaEntity caEntity = caRepository.findById(caId).orElseThrow(() -> new RuntimeException("CA not found"));
         caEntity.setStatus(requestBody.getStatus());
-        
+
         CaEntity saveEntity = caRepository.save(caEntity);
 
         CaInfo caInfo = caMapper.toDto(saveEntity);
@@ -354,6 +356,38 @@ public class CertificateServiceImpl implements CertificateService {
             .build();
 
         return result;
+    }
+
+    @Override
+    public ChainCaReadResult getCAChain(Long caId) {
+        log.info("getCAChain() = {}", caId);
+        CertificateEntity certificateEntity = certificateRepository.findByCa_CaId(caId).orElseThrow(() -> new RuntimeException("CA not found"));
+
+        List<String> chainPems = buildCaChain(certificateEntity.getSignedCa().getCertificate());
+
+        return ChainCaReadResult.builder()
+            .data(chainPems.stream()
+                .map(String::trim)
+                .collect(Collectors.joining("\n")))
+            .build();
+    }
+
+    private List<String> buildCaChain(CertificateEntity certificateEntity) {
+        List<String> chain = new ArrayList<>();
+
+        while (!isSelfSigned(certificateEntity)) {
+            chain.add(certificateEntity.getCertificatePem());
+            certificateEntity = certificateEntity.getSignedCa().getCertificate();
+        }
+
+        // 루트 CA도 포함
+        chain.add(certificateEntity.getCertificatePem());
+
+        return chain;
+    }
+
+    private boolean isSelfSigned(CertificateEntity cert) {
+        return cert.getCa().getCaId().equals(cert.getSignedCa().getCaId());
     }
 
     public CertificateInfo generateCsr(RequestBodyForCreateCert requestBody, KeyPair keyPair) {

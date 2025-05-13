@@ -11,6 +11,7 @@ import com.nhncloud.pca.CommonTestUtil;
 import com.nhncloud.pca.model.response.CaCreateResult;
 import com.nhncloud.pca.model.response.CaReadResult;
 import com.nhncloud.pca.model.response.CaUpdateResult;
+import com.nhncloud.pca.model.response.ChainCaReadResult;
 import com.nhncloud.pca.service.CertificateService;
 
 import static org.mockito.ArgumentMatchers.any;
@@ -65,7 +66,7 @@ public class CertificateApiControllerTest {
                 .content(body))
             .andExpect(status().isOk())
             .andExpect(jsonPath("$.header.isSuccessful").value(true))
-            .andExpect(jsonPath("$.body.certificateInfo.certificateId").value("1234"));
+            .andExpect(jsonPath("$.body.caInfo.name").value("TEST_CERTIFICATE_NAME"));
     }
 
     @Test
@@ -101,7 +102,7 @@ public class CertificateApiControllerTest {
                 .content(body))
             .andExpect(status().isOk())
             .andExpect(jsonPath("$.header.isSuccessful").value(true))
-            .andExpect(jsonPath("$.body.certificateInfo.certificateId").value("1234"));
+            .andExpect(jsonPath("$.body.certificateInfo.commonName").value("TEST_SUBJECT_INFO_COMMON_NAME"));
     }
 
     @Test
@@ -115,7 +116,7 @@ public class CertificateApiControllerTest {
                 .contentType("application/json"))
             .andExpect(status().isOk())
             .andExpect(jsonPath("$.header.isSuccessful").value(true))
-            .andExpect(jsonPath("$.body.certificateInfo.certificateId").value("1234"));
+            .andExpect(jsonPath("$.body.certificateInfo.commonName").value("TEST_SUBJECT_INFO_COMMON_NAME"));
     }
 
     @Test
@@ -134,5 +135,19 @@ public class CertificateApiControllerTest {
             .andExpect(status().isOk())
             .andExpect(jsonPath("$.header.isSuccessful").value(true))
             .andExpect(jsonPath("$.body.caInfo.status").value("INACTIVE"));
+    }
+
+    @Test
+    public void test_CA_체인_조회() throws Exception {
+        String chainCert = CommonTestUtil.ROOT_CA_KEY_PEM + "\n" + CommonTestUtil.TEST_CERTIFICATE_INFO_CERTIFICATE_PEM;
+
+        ChainCaReadResult chainCaReadResult = ChainCaReadResult.builder().data(chainCert).build();
+        when(certificateService.getCAChain(any())).thenReturn(chainCaReadResult);
+
+        mockMvc.perform(get("/ca/1/chain")
+                .contentType("application/json"))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.header.isSuccessful").value(true))
+            .andExpect(jsonPath("$.body.data").value(chainCert));
     }
 }

@@ -1,5 +1,6 @@
 package com.nhncloud.pca.service;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 
@@ -25,6 +26,7 @@ import com.nhncloud.pca.model.response.CaCreateResult;
 import com.nhncloud.pca.model.response.CaReadResult;
 import com.nhncloud.pca.model.response.CaUpdateResult;
 import com.nhncloud.pca.model.response.CertificateCreateResult;
+import com.nhncloud.pca.model.response.ChainCaReadResult;
 import com.nhncloud.pca.repository.CaRepository;
 import com.nhncloud.pca.repository.CertificateRepository;
 
@@ -93,10 +95,12 @@ public class CertificateServiceTest {
         certificate.setCertificatePem(certificateInfo.getCertificatePem());
         certificate.setPrivateKeyPem(certificateInfo.getPrivateKeyPem());
         certificate.setSignedCa(ca);
-        ca.setSignedCertificates(List.of(certificate));
+        ca.setSignedCertificates(new ArrayList<>(List.of(certificate)));
+
 
         when(caRepository.save(any())).thenReturn(new CaEntity());
-        when(certificateRepository.findBySignedCa_CaId(any())).thenReturn(Optional.of(certificate));
+        when(certificateRepository.findByCa_CaId(any())).thenReturn(Optional.of(certificate));
+        when(caRepository.findById(any())).thenReturn(Optional.of(ca));
         CaCreateResult result = service.generateCa(CommonTestUtil.createTestCertificateRequestBody(), "SUB", 1L);
 
         System.out.println(result);
@@ -113,9 +117,11 @@ public class CertificateServiceTest {
         certificate.setCertificatePem(certificateInfo.getCertificatePem());
         certificate.setPrivateKeyPem(certificateInfo.getPrivateKeyPem());
         certificate.setSignedCa(ca);
-        ca.setSignedCertificates(List.of(certificate));
+        ca.setSignedCertificates(new ArrayList<>(List.of(certificate)));
 
-        when(certificateRepository.findBySignedCa_CaId(any())).thenReturn(Optional.of(certificate));
+        when(certificateRepository.findByCa_CaId(any())).thenReturn(Optional.of(certificate));
+        when(caRepository.findById(any())).thenReturn(Optional.of(ca));
+        when(caRepository.save(any())).thenReturn(new CaEntity());
 
         CertificateCreateResult result = service.generateCert(CommonTestUtil.createTestCertificateRequestBody(), 1L);
         assertNotNull(result);
@@ -146,5 +152,24 @@ public class CertificateServiceTest {
         CaUpdateResult result = service.updateCA(1L, CommonTestUtil.createTestCertificateRequestBodyForUpdate());
         assertNotNull(result);
         assertEquals(result.getCaInfo().getStatus(), CaStatus.INACTIVE);
+    }
+
+    @Test
+    public void test_ChainCA_조회() {
+        CertificateEntity cert = CommonTestUtil.createTestCertificateEntity();
+        CertificateEntity rootCert = CommonTestUtil.createTestCertificateEntity();
+        CaEntity rootCa = CommonTestUtil.createTestCaEntity();
+        rootCa.setCertificate(rootCert);
+        rootCert.setCa(rootCa);
+        rootCert.setSignedCa(rootCa);
+        cert.setSignedCa(rootCa);
+
+
+        when(certificateRepository.findByCa_CaId(any())).thenReturn(Optional.of(cert));
+
+        String chainCert = CommonTestUtil.ROOT_CA_CERT_PEM;
+        ChainCaReadResult result = service.getCAChain(1L);
+        assertNotNull(result);
+        assertEquals(result.getData(), chainCert);
     }
 }
