@@ -10,6 +10,7 @@ import java.time.ZoneId;
 import com.nhncloud.pca.constant.CaStatus;
 import com.nhncloud.pca.model.key.KeyInfo;
 import com.nhncloud.pca.model.subject.SubjectInfo;
+import com.nhncloud.pca.util.CertificateUtil;
 
 @Data
 @Builder
@@ -41,7 +42,7 @@ public class CertificateInfo {
 
     public static CertificateInfo of(SubjectInfo subjectInfo, X509Certificate certificate, KeyInfo keyInfo, String certPem, String privateKeyPem, CaStatus status) {
         return CertificateInfo.builder()
-            .serialNumber(certificate.getSerialNumber().toString())
+            .serialNumber(CertificateUtil.formatSerialNumber(certificate.getSerialNumber().toByteArray()))
             .commonName(subjectInfo.getCommonName())
             .country(subjectInfo.getCountry())
             .locality(subjectInfo.getLocality())

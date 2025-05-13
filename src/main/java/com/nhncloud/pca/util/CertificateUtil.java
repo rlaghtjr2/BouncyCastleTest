@@ -117,4 +117,21 @@ public class CertificateUtil {
         return null;
     }
 
+    public static String formatSerialNumber(byte[] bytes) {
+        // 양수 보장을 위한 leading zero 제거
+        if (bytes.length > 1 && bytes[0] == 0x00) {
+            byte[] tmp = new byte[bytes.length - 1];
+            System.arraycopy(bytes, 1, tmp, 0, tmp.length);
+            bytes = tmp;
+        }
+
+        StringBuilder sb = new StringBuilder();
+        for (int i = 0; i < bytes.length; i++) {
+            sb.append(String.format("%02X", bytes[i]));
+            if (i < bytes.length - 1) {
+                sb.append(":");
+            }
+        }
+        return sb.toString();
+    }
 }
