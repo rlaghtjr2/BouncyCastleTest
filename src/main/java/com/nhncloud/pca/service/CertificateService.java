@@ -7,6 +7,7 @@ import com.nhncloud.pca.model.response.CaCreateResult;
 import com.nhncloud.pca.model.response.CaReadResult;
 import com.nhncloud.pca.model.response.CaUpdateResult;
 import com.nhncloud.pca.model.response.CertificateCreateResult;
+import com.nhncloud.pca.model.response.CertificateReadResult;
 import com.nhncloud.pca.model.response.ChainCaReadResult;
 
 public interface CertificateService {
@@ -19,4 +20,6 @@ public interface CertificateService {
     CaUpdateResult updateCA(Long caId, RequestBodyForUpdateCA requestBody);
 
     ChainCaReadResult getCAChain(Long caId);
+
+    CertificateReadResult getCert(Long caId, Long certId);
 }

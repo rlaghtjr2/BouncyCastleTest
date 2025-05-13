@@ -8,9 +8,11 @@ import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 
 import com.nhncloud.pca.CommonTestUtil;
+import com.nhncloud.pca.model.certificate.CertificateInfo;
 import com.nhncloud.pca.model.response.CaCreateResult;
 import com.nhncloud.pca.model.response.CaReadResult;
 import com.nhncloud.pca.model.response.CaUpdateResult;
+import com.nhncloud.pca.model.response.CertificateReadResult;
 import com.nhncloud.pca.model.response.ChainCaReadResult;
 import com.nhncloud.pca.service.CertificateService;
 
@@ -149,5 +151,18 @@ public class CertificateApiControllerTest {
             .andExpect(status().isOk())
             .andExpect(jsonPath("$.header.isSuccessful").value(true))
             .andExpect(jsonPath("$.body.data").value(chainCert));
+    }
+
+    @Test
+    public void test_인증서_조회() throws Exception {
+        CertificateInfo certificateInfo = CommonTestUtil.createTestRootCaCertificateInfo();
+        CertificateReadResult result = CertificateReadResult.of(certificateInfo);
+        when(certificateService.getCert(any(), any())).thenReturn(result);
+
+        mockMvc.perform(get("/ca/1/cert/1")
+                .contentType("application/json"))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.header.isSuccessful").value(true))
+            .andExpect(jsonPath("$.body.commonName").value(CommonTestUtil.TEST_SUBJECT_INFO_COMMON_NAME));
     }
 }

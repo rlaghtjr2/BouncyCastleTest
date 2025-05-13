@@ -57,6 +57,7 @@ import com.nhncloud.pca.model.response.CaCreateResult;
 import com.nhncloud.pca.model.response.CaReadResult;
 import com.nhncloud.pca.model.response.CaUpdateResult;
 import com.nhncloud.pca.model.response.CertificateCreateResult;
+import com.nhncloud.pca.model.response.CertificateReadResult;
 import com.nhncloud.pca.model.response.ChainCaReadResult;
 import com.nhncloud.pca.model.subject.SubjectInfo;
 import com.nhncloud.pca.repository.CaRepository;
@@ -158,7 +159,7 @@ public class CertificateServiceImpl implements CertificateService {
             throw new RuntimeException("Failed to add extensions", e);
         }
 
-        // 6. 인증서 생성 - siningKey로  sign
+        // 6. 인증서 생성 - signing Key로  sign
         X509Certificate certificate = getX509Certificate(certBuilder, signingKey);
 
         // 7. 생성한 인증서 PEM 변환
@@ -370,6 +371,36 @@ public class CertificateServiceImpl implements CertificateService {
                 .map(String::trim)
                 .collect(Collectors.joining("\n")))
             .build();
+    }
+
+    @Override
+    public CertificateReadResult getCert(Long caId, Long certId) {
+        log.info("getCert() = {}, {}", caId, certId);
+        CertificateEntity certificateEntity = certificateRepository.findByCertificateIdAndSignedCa_CaId(certId, caId)
+            .orElseThrow(() -> new RuntimeException("Certificate not found"));
+
+        X509Certificate certificate = CertificateUtil.parseCertificate(certificateEntity.getCertificatePem());
+        SubjectInfo subjectInfo = CertificateUtil.parseDnWithBouncyCastle(certificate.getSubjectX500Principal().toString());
+
+        String algorithm = certificate.getPublicKey().getAlgorithm();
+        RSAPublicKey rsaKey = (RSAPublicKey) certificate.getPublicKey();
+        int keySize = rsaKey.getModulus().bitLength();
+        KeyInfo keyInfo = KeyInfo.builder()
+            .algorithm(algorithm)
+            .keySize(keySize)
+            .build();
+
+        CertificateInfo certificateInfo = CertificateInfo.of(
+            subjectInfo,
+            certificate,
+            keyInfo,
+            certificateEntity.getCertificatePem(),
+            certificateEntity.getPrivateKeyPem(),
+            certificateEntity.getStatus()
+        );
+
+        CertificateReadResult result = CertificateReadResult.of(certificateInfo);
+        return result;
     }
 
     private List<String> buildCaChain(CertificateEntity certificateEntity) {

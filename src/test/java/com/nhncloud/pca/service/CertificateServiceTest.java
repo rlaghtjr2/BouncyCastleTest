@@ -26,6 +26,7 @@ import com.nhncloud.pca.model.response.CaCreateResult;
 import com.nhncloud.pca.model.response.CaReadResult;
 import com.nhncloud.pca.model.response.CaUpdateResult;
 import com.nhncloud.pca.model.response.CertificateCreateResult;
+import com.nhncloud.pca.model.response.CertificateReadResult;
 import com.nhncloud.pca.model.response.ChainCaReadResult;
 import com.nhncloud.pca.repository.CaRepository;
 import com.nhncloud.pca.repository.CertificateRepository;
@@ -130,7 +131,7 @@ public class CertificateServiceTest {
     }
 
     @Test
-    public void test_인증서_조회() {
+    public void test_CA_조회() {
         CaEntity ca = CommonTestUtil.createTestCaEntity();
         when(caRepository.findById(any())).thenReturn(Optional.of(ca));
 
@@ -171,5 +172,16 @@ public class CertificateServiceTest {
         ChainCaReadResult result = service.getCAChain(1L);
         assertNotNull(result);
         assertEquals(result.getData(), chainCert);
+    }
+
+    @Test
+    public void test_인증서_조회() {
+        CertificateEntity cert = CommonTestUtil.createTestCertificateEntity();
+        when(certificateRepository.findByCertificateIdAndSignedCa_CaId(any(), any())).thenReturn(Optional.of(cert));
+
+        CertificateReadResult result = service.getCert(1L, 1L);
+        assertNotNull(result);
+        assertEquals(result.getCommonName(), CommonTestUtil.TEST_SUBJECT_INFO_COMMON_NAME);
+        assertEquals(result.getCertificatePem(), cert.getCertificatePem());
     }
 }
