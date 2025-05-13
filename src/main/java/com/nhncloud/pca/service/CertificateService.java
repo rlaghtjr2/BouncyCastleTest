@@ -1,8 +1,8 @@
 package com.nhncloud.pca.service;
 
-import com.nhncloud.pca.model.request.RequestBodyForCreateCA;
-import com.nhncloud.pca.model.request.RequestBodyForCreateCert;
-import com.nhncloud.pca.model.request.RequestBodyForUpdateCA;
+import com.nhncloud.pca.model.request.ca.RequestBodyForCreateCA;
+import com.nhncloud.pca.model.request.ca.RequestBodyForUpdateCA;
+import com.nhncloud.pca.model.request.certificate.RequestBodyForCreateCert;
 import com.nhncloud.pca.model.response.ca.ResponseBodyForCreateCA;
 import com.nhncloud.pca.model.response.ca.ResponseBodyForReadCA;
 import com.nhncloud.pca.model.response.ca.ResponseBodyForReadChainCA;

@@ -21,7 +21,7 @@ import com.nhncloud.pca.mapper.CaMapperImpl;
 import com.nhncloud.pca.mapper.CertificateMapper;
 import com.nhncloud.pca.mapper.CertificateMapperImpl;
 import com.nhncloud.pca.model.certificate.CertificateInfo;
-import com.nhncloud.pca.model.request.RequestBodyForCreateCA;
+import com.nhncloud.pca.model.request.ca.RequestBodyForCreateCA;
 import com.nhncloud.pca.model.response.ca.ResponseBodyForCreateCA;
 import com.nhncloud.pca.model.response.ca.ResponseBodyForReadCA;
 import com.nhncloud.pca.model.response.ca.ResponseBodyForReadChainCA;

@@ -1,4 +1,4 @@
-package com.nhncloud.pca.model.request;
+package com.nhncloud.pca.model.request.certificate;
 
 import lombok.Data;
 

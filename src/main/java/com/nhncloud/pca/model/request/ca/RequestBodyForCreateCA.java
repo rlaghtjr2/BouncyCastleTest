@@ -1,6 +1,8 @@
-package com.nhncloud.pca.model.request;
+package com.nhncloud.pca.model.request.ca;
 
 import lombok.Data;
+
+import com.nhncloud.pca.model.request.certificate.RequestBodyForCreateCert;
 
 @Data
 public class RequestBodyForCreateCA extends RequestBodyForCreateCert {

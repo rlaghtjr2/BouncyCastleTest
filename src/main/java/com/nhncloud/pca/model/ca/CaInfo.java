@@ -4,7 +4,7 @@ import lombok.Builder;
 import lombok.Data;
 
 import com.nhncloud.pca.constant.CaStatus;
-import com.nhncloud.pca.model.request.RequestBodyForCreateCA;
+import com.nhncloud.pca.model.request.ca.RequestBodyForCreateCA;
 
 @Data
 @Builder
