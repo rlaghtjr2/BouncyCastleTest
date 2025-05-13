@@ -1,11 +1,11 @@
-package com.nhncloud.pca.model.response;
+package com.nhncloud.pca.model.response.certificate;
 
 import lombok.Builder;
 import lombok.Data;
 
 @Data
 @Builder
-public class CertificateCreateResult {
+public class ResponseBodyForCreateCert {
     private String certificatePem;
     private String chainCertificatePem;
     private String privateKeyPem;

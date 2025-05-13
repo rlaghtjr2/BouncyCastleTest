@@ -1,4 +1,4 @@
-package com.nhncloud.pca.model.response;
+package com.nhncloud.pca.model.response.certificate;
 
 import lombok.Builder;
 import lombok.Data;
@@ -9,7 +9,7 @@ import com.nhncloud.pca.model.certificate.CertificateInfo;
 
 @Data
 @Builder
-public class CertificateReadResult {
+public class ResponseBodyForReadCert {
     private String commonName;
     private String serialNumber;
 
@@ -23,8 +23,8 @@ public class CertificateReadResult {
 
     private String signatureAlgorithm;
 
-    public static CertificateReadResult of(CertificateInfo certificateInfo) {
-        return CertificateReadResult.builder()
+    public static ResponseBodyForReadCert of(CertificateInfo certificateInfo) {
+        return ResponseBodyForReadCert.builder()
             .commonName(certificateInfo.getCommonName())
             .serialNumber(certificateInfo.getSerialNumber())
             .notAfterDateTime(certificateInfo.getNotAfterDateTime())

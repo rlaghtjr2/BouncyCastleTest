@@ -9,11 +9,11 @@ import org.springframework.test.web.servlet.MockMvc;
 
 import com.nhncloud.pca.CommonTestUtil;
 import com.nhncloud.pca.model.certificate.CertificateInfo;
-import com.nhncloud.pca.model.response.CaCreateResult;
-import com.nhncloud.pca.model.response.CaReadResult;
-import com.nhncloud.pca.model.response.CaUpdateResult;
-import com.nhncloud.pca.model.response.CertificateReadResult;
-import com.nhncloud.pca.model.response.ChainCaReadResult;
+import com.nhncloud.pca.model.response.ca.ResponseBodyForCreateCA;
+import com.nhncloud.pca.model.response.ca.ResponseBodyForReadCA;
+import com.nhncloud.pca.model.response.ca.ResponseBodyForReadChainCA;
+import com.nhncloud.pca.model.response.ca.ResponseBodyForUpdateCA;
+import com.nhncloud.pca.model.response.certificate.ResponseBodyForReadCert;
 import com.nhncloud.pca.service.CertificateService;
 
 import static org.mockito.ArgumentMatchers.any;
@@ -37,9 +37,9 @@ public class CertificateApiControllerTest {
     @Test
     public void test_root_CA_생성() throws Exception {
 
-        CaCreateResult caCreateResult = CommonTestUtil.createTestCertificateResult_Root();
+        ResponseBodyForCreateCA responseBodyForCreateCA = CommonTestUtil.createTestCertificateResult_Root();
 
-        when(certificateService.generateCa(any(), any(), any())).thenReturn(caCreateResult);
+        when(certificateService.generateCa(any(), any(), any())).thenReturn(responseBodyForCreateCA);
 
         String body = "{\n" +
             "  \"name\": \"ROOT CA NAME\",\n" +
@@ -74,8 +74,8 @@ public class CertificateApiControllerTest {
     @Test
     public void test_intermediate_CA_생성() throws Exception {
 
-        CaCreateResult caCreateResult = CommonTestUtil.createTestCertificateResult_Intermediate();
-        when(certificateService.generateCa(any(), any(), any())).thenReturn(caCreateResult);
+        ResponseBodyForCreateCA responseBodyForCreateCA = CommonTestUtil.createTestCertificateResult_Intermediate();
+        when(certificateService.generateCa(any(), any(), any())).thenReturn(responseBodyForCreateCA);
 
         String body = "{\n" +
             "  \"name\": \"Intermediate CA NAME\",\n" +
@@ -110,7 +110,7 @@ public class CertificateApiControllerTest {
     @Test
     public void test_CA_조회() throws Exception {
 
-        CaReadResult caCreateResult = CommonTestUtil.createTestCertificateResult_Read();
+        ResponseBodyForReadCA caCreateResult = CommonTestUtil.createTestCertificateResult_Read();
         when(certificateService.getCA(any())).thenReturn(caCreateResult);
 
         mockMvc.perform(get("/ca/1")
@@ -124,8 +124,8 @@ public class CertificateApiControllerTest {
     @Test
     public void test_CA_상태변경() throws Exception {
 
-        CaUpdateResult caUpdateResult = CommonTestUtil.createTestCertificateResult_Update();
-        when(certificateService.updateCA(any(), any())).thenReturn(caUpdateResult);
+        ResponseBodyForUpdateCA responseBodyForUpdateCA = CommonTestUtil.createTestCertificateResult_Update();
+        when(certificateService.updateCA(any(), any())).thenReturn(responseBodyForUpdateCA);
 
         String body = "{\n" +
             "  \"status\": \"INACTIVE\"\n" +
@@ -143,8 +143,8 @@ public class CertificateApiControllerTest {
     public void test_CA_체인_조회() throws Exception {
         String chainCert = CommonTestUtil.ROOT_CA_KEY_PEM + "\n" + CommonTestUtil.TEST_CERTIFICATE_INFO_CERTIFICATE_PEM;
 
-        ChainCaReadResult chainCaReadResult = ChainCaReadResult.builder().data(chainCert).build();
-        when(certificateService.getCAChain(any())).thenReturn(chainCaReadResult);
+        ResponseBodyForReadChainCA responseBodyForReadChainCA = ResponseBodyForReadChainCA.builder().data(chainCert).build();
+        when(certificateService.getCAChain(any())).thenReturn(responseBodyForReadChainCA);
 
         mockMvc.perform(get("/ca/1/chain")
                 .contentType("application/json"))
@@ -156,7 +156,7 @@ public class CertificateApiControllerTest {
     @Test
     public void test_인증서_조회() throws Exception {
         CertificateInfo certificateInfo = CommonTestUtil.createTestRootCaCertificateInfo();
-        CertificateReadResult result = CertificateReadResult.of(certificateInfo);
+        ResponseBodyForReadCert result = ResponseBodyForReadCert.of(certificateInfo);
         when(certificateService.getCert(any(), any())).thenReturn(result);
 
         mockMvc.perform(get("/ca/1/cert/1")

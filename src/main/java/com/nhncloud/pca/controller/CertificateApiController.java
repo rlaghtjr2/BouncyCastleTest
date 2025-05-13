@@ -17,12 +17,12 @@ import com.nhncloud.pca.common.response.ApiResponse;
 import com.nhncloud.pca.model.request.RequestBodyForCreateCA;
 import com.nhncloud.pca.model.request.RequestBodyForCreateCert;
 import com.nhncloud.pca.model.request.RequestBodyForUpdateCA;
-import com.nhncloud.pca.model.response.CaCreateResult;
-import com.nhncloud.pca.model.response.CaReadResult;
-import com.nhncloud.pca.model.response.CaUpdateResult;
-import com.nhncloud.pca.model.response.CertificateCreateResult;
-import com.nhncloud.pca.model.response.CertificateReadResult;
-import com.nhncloud.pca.model.response.ChainCaReadResult;
+import com.nhncloud.pca.model.response.ca.ResponseBodyForCreateCA;
+import com.nhncloud.pca.model.response.ca.ResponseBodyForReadCA;
+import com.nhncloud.pca.model.response.ca.ResponseBodyForReadChainCA;
+import com.nhncloud.pca.model.response.ca.ResponseBodyForUpdateCA;
+import com.nhncloud.pca.model.response.certificate.ResponseBodyForCreateCert;
+import com.nhncloud.pca.model.response.certificate.ResponseBodyForReadCert;
 import com.nhncloud.pca.service.CertificateService;
 
 @Slf4j
@@ -37,7 +37,7 @@ public class CertificateApiController {
 
     @PostMapping
     public ResponseEntity<ApiResponse> createCa(@RequestBody RequestBodyForCreateCA requestBody, @RequestParam("caType") String caType, @Nullable @RequestParam("caId") Long caId) {
-        CaCreateResult result;
+        ResponseBodyForCreateCA result;
         try {
             result = certificateService.generateCa(requestBody, caType, caId);
         } catch (Exception e) {
@@ -49,7 +49,7 @@ public class CertificateApiController {
 
     @PostMapping("/{caId}/cert")
     public ResponseEntity<ApiResponse> createCert(@RequestBody RequestBodyForCreateCert requestBody, @PathVariable("caId") Long caId) {
-        CertificateCreateResult result;
+        ResponseBodyForCreateCert result;
         try {
             result = certificateService.generateCert(requestBody, caId);
         } catch (Exception e) {
@@ -60,25 +60,25 @@ public class CertificateApiController {
 
     @GetMapping("/{caId}")
     public ResponseEntity<ApiResponse> getCA(@PathVariable("caId") Long caId) {
-        CaReadResult result = certificateService.getCA(caId);
+        ResponseBodyForReadCA result = certificateService.getCA(caId);
         return ResponseEntity.ok(ApiResponse.success(result));
     }
 
     @PutMapping("/{caId}")
     public ResponseEntity<ApiResponse> updateCA(@PathVariable("caId") Long caId, @RequestBody RequestBodyForUpdateCA requestBody) {
-        CaUpdateResult result = certificateService.updateCA(caId, requestBody);
+        ResponseBodyForUpdateCA result = certificateService.updateCA(caId, requestBody);
         return ResponseEntity.ok(ApiResponse.success(result));
     }
 
     @GetMapping("/{caId}/chain")
     public ResponseEntity<ApiResponse> getCAChain(@PathVariable("caId") Long caId) {
-        ChainCaReadResult result = certificateService.getCAChain(caId);
+        ResponseBodyForReadChainCA result = certificateService.getCAChain(caId);
         return ResponseEntity.ok(ApiResponse.success(result));
     }
 
     @GetMapping("/{caId}/cert/{certId}")
     public ResponseEntity<ApiResponse> getCert(@PathVariable("caId") Long caId, @PathVariable("certId") Long certId) {
-        CertificateReadResult result = certificateService.getCert(caId, certId);
+        ResponseBodyForReadCert result = certificateService.getCert(caId, certId);
         return ResponseEntity.ok(ApiResponse.success(result));
     }
 }

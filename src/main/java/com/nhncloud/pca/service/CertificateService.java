@@ -3,23 +3,23 @@ package com.nhncloud.pca.service;
 import com.nhncloud.pca.model.request.RequestBodyForCreateCA;
 import com.nhncloud.pca.model.request.RequestBodyForCreateCert;
 import com.nhncloud.pca.model.request.RequestBodyForUpdateCA;
-import com.nhncloud.pca.model.response.CaCreateResult;
-import com.nhncloud.pca.model.response.CaReadResult;
-import com.nhncloud.pca.model.response.CaUpdateResult;
-import com.nhncloud.pca.model.response.CertificateCreateResult;
-import com.nhncloud.pca.model.response.CertificateReadResult;
-import com.nhncloud.pca.model.response.ChainCaReadResult;
+import com.nhncloud.pca.model.response.ca.ResponseBodyForCreateCA;
+import com.nhncloud.pca.model.response.ca.ResponseBodyForReadCA;
+import com.nhncloud.pca.model.response.ca.ResponseBodyForReadChainCA;
+import com.nhncloud.pca.model.response.ca.ResponseBodyForUpdateCA;
+import com.nhncloud.pca.model.response.certificate.ResponseBodyForCreateCert;
+import com.nhncloud.pca.model.response.certificate.ResponseBodyForReadCert;
 
 public interface CertificateService {
-    CaCreateResult generateCa(RequestBodyForCreateCA requestBody, String caType, Long caId) throws Exception;
+    ResponseBodyForCreateCA generateCa(RequestBodyForCreateCA requestBody, String caType, Long caId) throws Exception;
 
-    CertificateCreateResult generateCert(RequestBodyForCreateCert requestBody, Long caId) throws Exception;
+    ResponseBodyForCreateCert generateCert(RequestBodyForCreateCert requestBody, Long caId) throws Exception;
 
-    CaReadResult getCA(Long caId);
+    ResponseBodyForReadCA getCA(Long caId);
 
-    CaUpdateResult updateCA(Long caId, RequestBodyForUpdateCA requestBody);
+    ResponseBodyForUpdateCA updateCA(Long caId, RequestBodyForUpdateCA requestBody);
 
-    ChainCaReadResult getCAChain(Long caId);
+    ResponseBodyForReadChainCA getCAChain(Long caId);
 
-    CertificateReadResult getCert(Long caId, Long certId);
+    ResponseBodyForReadCert getCert(Long caId, Long certId);
 }

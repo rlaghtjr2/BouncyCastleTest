@@ -31,9 +31,9 @@ import com.nhncloud.pca.model.certificate.CertificateInfo;
 import com.nhncloud.pca.model.key.KeyInfo;
 import com.nhncloud.pca.model.request.RequestBodyForCreateCA;
 import com.nhncloud.pca.model.request.RequestBodyForUpdateCA;
-import com.nhncloud.pca.model.response.CaCreateResult;
-import com.nhncloud.pca.model.response.CaReadResult;
-import com.nhncloud.pca.model.response.CaUpdateResult;
+import com.nhncloud.pca.model.response.ca.ResponseBodyForCreateCA;
+import com.nhncloud.pca.model.response.ca.ResponseBodyForReadCA;
+import com.nhncloud.pca.model.response.ca.ResponseBodyForUpdateCA;
 import com.nhncloud.pca.model.subject.SubjectInfo;
 
 public class CommonTestUtil {
@@ -127,14 +127,14 @@ public class CommonTestUtil {
         return caInfo;
     }
 
-    public static CaCreateResult createTestCertificateResult_Root() {
-        CaCreateResult caCreateResult = CaCreateResult.of(
+    public static ResponseBodyForCreateCA createTestCertificateResult_Root() {
+        ResponseBodyForCreateCA responseBodyForCreateCA = ResponseBodyForCreateCA.of(
             createTestCaInfo_Root(),
             createTestRootCaCertificateInfo(),
             TEST_CERTIFICATE_INFO_STATUS
         );
 
-        return caCreateResult;
+        return responseBodyForCreateCA;
     }
 
     public static CaInfo createTestCaInfo_Intermediate() {
@@ -142,18 +142,18 @@ public class CommonTestUtil {
         return caInfo;
     }
 
-    public static CaCreateResult createTestCertificateResult_Intermediate() {
-        CaCreateResult caCreateResult = CaCreateResult.of(
+    public static ResponseBodyForCreateCA createTestCertificateResult_Intermediate() {
+        ResponseBodyForCreateCA responseBodyForCreateCA = ResponseBodyForCreateCA.of(
             createTestCaInfo_Intermediate(),
             createTestRootCaCertificateInfo(),
             TEST_CERTIFICATE_INFO_STATUS
         );
 
-        return caCreateResult;
+        return responseBodyForCreateCA;
     }
 
-    public static CaReadResult createTestCertificateResult_Read() {
-        CaReadResult caCreateResult = CaReadResult.of(
+    public static ResponseBodyForReadCA createTestCertificateResult_Read() {
+        ResponseBodyForReadCA caCreateResult = ResponseBodyForReadCA.of(
             createTestCaInfo_Intermediate(),
             createTestRootCaCertificateInfo(),
             TEST_CERTIFICATE_INFO_STATUS
@@ -183,13 +183,13 @@ public class CommonTestUtil {
         return certificateEntity;
     }
 
-    public static CaUpdateResult createTestCertificateResult_Update() {
-        CaUpdateResult caUpdateResult = CaUpdateResult.builder()
+    public static ResponseBodyForUpdateCA createTestCertificateResult_Update() {
+        ResponseBodyForUpdateCA responseBodyForUpdateCA = ResponseBodyForUpdateCA.builder()
             .caInfo(createTestCaInfo_Intermediate())
             .build();
 
-        caUpdateResult.getCaInfo().setStatus(CaStatus.INACTIVE);
-        return caUpdateResult;
+        responseBodyForUpdateCA.getCaInfo().setStatus(CaStatus.INACTIVE);
+        return responseBodyForUpdateCA;
     }
 
     public static X509Certificate generateSelfSignedCertificate() {

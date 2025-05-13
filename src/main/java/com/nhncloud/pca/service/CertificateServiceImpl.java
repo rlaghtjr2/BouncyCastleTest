@@ -53,12 +53,12 @@ import com.nhncloud.pca.model.key.KeyInfo;
 import com.nhncloud.pca.model.request.RequestBodyForCreateCA;
 import com.nhncloud.pca.model.request.RequestBodyForCreateCert;
 import com.nhncloud.pca.model.request.RequestBodyForUpdateCA;
-import com.nhncloud.pca.model.response.CaCreateResult;
-import com.nhncloud.pca.model.response.CaReadResult;
-import com.nhncloud.pca.model.response.CaUpdateResult;
-import com.nhncloud.pca.model.response.CertificateCreateResult;
-import com.nhncloud.pca.model.response.CertificateReadResult;
-import com.nhncloud.pca.model.response.ChainCaReadResult;
+import com.nhncloud.pca.model.response.ca.ResponseBodyForCreateCA;
+import com.nhncloud.pca.model.response.ca.ResponseBodyForReadCA;
+import com.nhncloud.pca.model.response.ca.ResponseBodyForReadChainCA;
+import com.nhncloud.pca.model.response.ca.ResponseBodyForUpdateCA;
+import com.nhncloud.pca.model.response.certificate.ResponseBodyForCreateCert;
+import com.nhncloud.pca.model.response.certificate.ResponseBodyForReadCert;
 import com.nhncloud.pca.model.subject.SubjectInfo;
 import com.nhncloud.pca.repository.CaRepository;
 import com.nhncloud.pca.repository.CertificateRepository;
@@ -90,7 +90,7 @@ public class CertificateServiceImpl implements CertificateService {
     }
 
     @Override
-    public CaCreateResult generateCa(RequestBodyForCreateCA requestBody, String caType, Long caId) {
+    public ResponseBodyForCreateCA generateCa(RequestBodyForCreateCA requestBody, String caType, Long caId) {
         log.info("generateCa() = {}, caType = {}", requestBody, caType);
 
         //1. 인증서 생성에 사용할 Key 만들기
@@ -181,7 +181,7 @@ public class CertificateServiceImpl implements CertificateService {
         );
 
         // 9. Return값
-        CaCreateResult result = CaCreateResult.of(
+        ResponseBodyForCreateCA result = ResponseBodyForCreateCA.of(
             caInfo,
             caCertificateInfo,
             CaStatus.ACTIVE
@@ -218,7 +218,7 @@ public class CertificateServiceImpl implements CertificateService {
     }
 
     @Override
-    public CertificateCreateResult generateCert(RequestBodyForCreateCert requestBody, Long caId) throws Exception {
+    public ResponseBodyForCreateCert generateCert(RequestBodyForCreateCert requestBody, Long caId) throws Exception {
         log.info("generateCert() = {}, caId = {}", requestBody, caId);
 
         //1. 인증서 생성에 사용할 Key 만들기
@@ -281,7 +281,7 @@ public class CertificateServiceImpl implements CertificateService {
         String privateKeyPem = CertificateUtil.toPemString(keyPair.getPrivate());
 
         // 8. Return 객체 생성
-        CertificateCreateResult result = CertificateCreateResult.builder()
+        ResponseBodyForCreateCert result = ResponseBodyForCreateCert.builder()
             .serialNo(certificate.getSerialNumber().toString())
             .certificatePem(certificatePem)
             .privateKeyPem(privateKeyPem)
@@ -308,7 +308,7 @@ public class CertificateServiceImpl implements CertificateService {
     }
 
     @Override
-    public CaReadResult getCA(Long caId) {
+    public ResponseBodyForReadCA getCA(Long caId) {
         log.info("getCA() = {}", caId);
         CaEntity caEntity = caRepository.findById(caId).orElseThrow(() -> new RuntimeException("CA not found"));
         CaInfo caInfo = caMapper.toDto(caEntity);
@@ -333,7 +333,7 @@ public class CertificateServiceImpl implements CertificateService {
             caEntity.getCertificate().getStatus()
         );
         caCertificateInfo.setCertificateId(caEntity.getCertificate().getCertificateId());
-        CaReadResult result = CaReadResult.of(
+        ResponseBodyForReadCA result = ResponseBodyForReadCA.of(
             caInfo,
             caCertificateInfo,
             caInfo.getStatus()
@@ -343,7 +343,7 @@ public class CertificateServiceImpl implements CertificateService {
     }
 
     @Override
-    public CaUpdateResult updateCA(Long caId, RequestBodyForUpdateCA requestBody) {
+    public ResponseBodyForUpdateCA updateCA(Long caId, RequestBodyForUpdateCA requestBody) {
         log.info("updateCA() = {}", caId);
         CaEntity caEntity = caRepository.findById(caId).orElseThrow(() -> new RuntimeException("CA not found"));
         caEntity.setStatus(requestBody.getStatus());
@@ -352,7 +352,7 @@ public class CertificateServiceImpl implements CertificateService {
 
         CaInfo caInfo = caMapper.toDto(saveEntity);
 
-        CaUpdateResult result = CaUpdateResult.builder()
+        ResponseBodyForUpdateCA result = ResponseBodyForUpdateCA.builder()
             .caInfo(caInfo)
             .build();
 
@@ -360,13 +360,13 @@ public class CertificateServiceImpl implements CertificateService {
     }
 
     @Override
-    public ChainCaReadResult getCAChain(Long caId) {
+    public ResponseBodyForReadChainCA getCAChain(Long caId) {
         log.info("getCAChain() = {}", caId);
         CertificateEntity certificateEntity = certificateRepository.findByCa_CaId(caId).orElseThrow(() -> new RuntimeException("CA not found"));
 
         List<String> chainPems = buildCaChain(certificateEntity.getSignedCa().getCertificate());
 
-        return ChainCaReadResult.builder()
+        return ResponseBodyForReadChainCA.builder()
             .data(chainPems.stream()
                 .map(String::trim)
                 .collect(Collectors.joining("\n")))
@@ -374,7 +374,7 @@ public class CertificateServiceImpl implements CertificateService {
     }
 
     @Override
-    public CertificateReadResult getCert(Long caId, Long certId) {
+    public ResponseBodyForReadCert getCert(Long caId, Long certId) {
         log.info("getCert() = {}, {}", caId, certId);
         CertificateEntity certificateEntity = certificateRepository.findByCertificateIdAndSignedCa_CaId(certId, caId)
             .orElseThrow(() -> new RuntimeException("Certificate not found"));
@@ -399,7 +399,7 @@ public class CertificateServiceImpl implements CertificateService {
             certificateEntity.getStatus()
         );
 
-        CertificateReadResult result = CertificateReadResult.of(certificateInfo);
+        ResponseBodyForReadCert result = ResponseBodyForReadCert.of(certificateInfo);
         return result;
     }
 

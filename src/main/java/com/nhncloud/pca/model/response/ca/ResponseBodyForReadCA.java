@@ -1,4 +1,4 @@
-package com.nhncloud.pca.model.response;
+package com.nhncloud.pca.model.response.ca;
 
 import lombok.Builder;
 import lombok.Data;
@@ -11,7 +11,7 @@ import com.nhncloud.pca.model.certificate.CertificateInfo;
 
 @Data
 @Builder
-public class CaCreateResult {
+public class ResponseBodyForReadCA {
     private CaInfo caInfo;
 
     private CertificateInfo certificateInfo;
@@ -23,11 +23,11 @@ public class CaCreateResult {
     private LocalDateTime lastChangeDatetime;
     private String lastChangeUser;
 
-    public static CaCreateResult of(CaInfo caInfo, CertificateInfo caCertInfo, CaStatus caStatus) {
-        return CaCreateResult.builder()
+    public static ResponseBodyForReadCA of(CaInfo caInfo, CertificateInfo caCertInfo, CaStatus status) {
+        return ResponseBodyForReadCA.builder()
             .caInfo(caInfo)
             .certificateInfo(caCertInfo)
-            .status(caStatus)
+            .status(status)
             .creationDatetime(LocalDateTime.now())
             .creationUser("hoseok")
             .build();
