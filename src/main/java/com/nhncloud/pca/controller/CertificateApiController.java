@@ -23,6 +23,7 @@ import com.nhncloud.pca.model.response.ca.ResponseBodyForReadChainCA;
 import com.nhncloud.pca.model.response.ca.ResponseBodyForUpdateCA;
 import com.nhncloud.pca.model.response.certificate.ResponseBodyForCreateCert;
 import com.nhncloud.pca.model.response.certificate.ResponseBodyForReadCert;
+import com.nhncloud.pca.model.response.certificate.ResponseBodyForReadCertList;
 import com.nhncloud.pca.service.CertificateService;
 
 @Slf4j
@@ -79,6 +80,12 @@ public class CertificateApiController {
     @GetMapping("/{caId}/cert/{certId}")
     public ResponseEntity<ApiResponse> getCert(@PathVariable("caId") Long caId, @PathVariable("certId") Long certId) {
         ResponseBodyForReadCert result = certificateService.getCert(caId, certId);
+        return ResponseEntity.ok(ApiResponse.success(result));
+    }
+
+    @GetMapping("/{caId}/cert")
+    public ResponseEntity<ApiResponse> getCertList(@PathVariable("caId") Long caId) {
+        ResponseBodyForReadCertList result = certificateService.getCertList(caId);
         return ResponseEntity.ok(ApiResponse.success(result));
     }
 }

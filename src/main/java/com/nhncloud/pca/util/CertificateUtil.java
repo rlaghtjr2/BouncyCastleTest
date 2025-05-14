@@ -7,6 +7,7 @@ import java.io.UncheckedIOException;
 import java.security.PrivateKey;
 import java.security.cert.CertificateException;
 import java.security.cert.X509Certificate;
+import java.security.interfaces.RSAPublicKey;
 import java.util.List;
 
 import org.bouncycastle.asn1.pkcs.PrivateKeyInfo;
@@ -24,6 +25,7 @@ import org.bouncycastle.openssl.jcajce.JcaPEMWriter;
 import org.bouncycastle.pkcs.PKCS10CertificationRequest;
 
 import com.nhncloud.pca.model.certificate.CertificateExtension;
+import com.nhncloud.pca.model.key.KeyInfo;
 import com.nhncloud.pca.model.subject.SubjectInfo;
 
 public class CertificateUtil {
@@ -133,5 +135,17 @@ public class CertificateUtil {
             }
         }
         return sb.toString();
+    }
+
+    public static KeyInfo getKeyInfo(X509Certificate certificate) {
+        String algorithm = certificate.getPublicKey().getAlgorithm();
+        RSAPublicKey rsaKey = (RSAPublicKey) certificate.getPublicKey();
+        int keySize = rsaKey.getModulus().bitLength();
+        KeyInfo keyInfo = KeyInfo.builder()
+            .algorithm(algorithm)
+            .keySize(keySize)
+            .build();
+
+        return keyInfo;
     }
 }

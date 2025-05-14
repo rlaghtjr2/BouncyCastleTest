@@ -11,7 +11,6 @@ import java.security.PrivateKey;
 import java.security.Security;
 import java.security.cert.CertificateException;
 import java.security.cert.X509Certificate;
-import java.security.interfaces.RSAPublicKey;
 import java.util.ArrayList;
 import java.util.Date;
 import java.util.List;
@@ -59,6 +58,7 @@ import com.nhncloud.pca.model.response.ca.ResponseBodyForReadChainCA;
 import com.nhncloud.pca.model.response.ca.ResponseBodyForUpdateCA;
 import com.nhncloud.pca.model.response.certificate.ResponseBodyForCreateCert;
 import com.nhncloud.pca.model.response.certificate.ResponseBodyForReadCert;
+import com.nhncloud.pca.model.response.certificate.ResponseBodyForReadCertList;
 import com.nhncloud.pca.model.subject.SubjectInfo;
 import com.nhncloud.pca.repository.CaRepository;
 import com.nhncloud.pca.repository.CertificateRepository;
@@ -316,13 +316,7 @@ public class CertificateServiceImpl implements CertificateService {
         X509Certificate certificate = CertificateUtil.parseCertificate(caEntity.getCertificate().getCertificatePem());
         SubjectInfo subjectInfo = CertificateUtil.parseDnWithBouncyCastle(certificate.getSubjectX500Principal().toString());
 
-        String algorithm = certificate.getPublicKey().getAlgorithm();
-        RSAPublicKey rsaKey = (RSAPublicKey) certificate.getPublicKey();
-        int keySize = rsaKey.getModulus().bitLength();
-        KeyInfo keyInfo = KeyInfo.builder()
-            .algorithm(algorithm)
-            .keySize(keySize)
-            .build();
+        KeyInfo keyInfo = CertificateUtil.getKeyInfo(certificate);
 
         CertificateInfo caCertificateInfo = CertificateInfo.of(
             subjectInfo,
@@ -381,14 +375,7 @@ public class CertificateServiceImpl implements CertificateService {
 
         X509Certificate certificate = CertificateUtil.parseCertificate(certificateEntity.getCertificatePem());
         SubjectInfo subjectInfo = CertificateUtil.parseDnWithBouncyCastle(certificate.getSubjectX500Principal().toString());
-
-        String algorithm = certificate.getPublicKey().getAlgorithm();
-        RSAPublicKey rsaKey = (RSAPublicKey) certificate.getPublicKey();
-        int keySize = rsaKey.getModulus().bitLength();
-        KeyInfo keyInfo = KeyInfo.builder()
-            .algorithm(algorithm)
-            .keySize(keySize)
-            .build();
+        KeyInfo keyInfo = CertificateUtil.getKeyInfo(certificate);
 
         CertificateInfo certificateInfo = CertificateInfo.of(
             subjectInfo,
@@ -401,6 +388,23 @@ public class CertificateServiceImpl implements CertificateService {
 
         ResponseBodyForReadCert result = ResponseBodyForReadCert.of(certificateInfo);
         return result;
+    }
+
+    @Override
+    public ResponseBodyForReadCertList getCertList(Long caId) {
+        log.info("getCertList() = {}", caId);
+        List<CertificateEntity> certificateEntities = certificateRepository.findBySignedCa_CaIdAndCaIsNull(caId).orElseThrow(() -> new RuntimeException("CA not found"));
+
+        List<String> certSerialNumberList = certificateEntities.stream()
+            .map(certificateEntity -> {
+                X509Certificate certificate = CertificateUtil.parseCertificate(certificateEntity.getCertificatePem());
+                return CertificateUtil.formatSerialNumber(certificate.getSerialNumber().toByteArray());
+            })
+            .collect(Collectors.toList());
+
+        return ResponseBodyForReadCertList.builder()
+            .listCerts(certSerialNumberList)
+            .build();
     }
 
     private List<String> buildCaChain(CertificateEntity certificateEntity) {

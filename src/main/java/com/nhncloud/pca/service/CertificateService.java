@@ -9,6 +9,7 @@ import com.nhncloud.pca.model.response.ca.ResponseBodyForReadChainCA;
 import com.nhncloud.pca.model.response.ca.ResponseBodyForUpdateCA;
 import com.nhncloud.pca.model.response.certificate.ResponseBodyForCreateCert;
 import com.nhncloud.pca.model.response.certificate.ResponseBodyForReadCert;
+import com.nhncloud.pca.model.response.certificate.ResponseBodyForReadCertList;
 
 public interface CertificateService {
     ResponseBodyForCreateCA generateCa(RequestBodyForCreateCA requestBody, String caType, Long caId) throws Exception;
@@ -22,4 +23,6 @@ public interface CertificateService {
     ResponseBodyForReadChainCA getCAChain(Long caId);
 
     ResponseBodyForReadCert getCert(Long caId, Long certId);
+
+    ResponseBodyForReadCertList getCertList(Long caId);
 }

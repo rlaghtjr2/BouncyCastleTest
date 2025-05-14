@@ -1,5 +1,6 @@
 package com.nhncloud.pca.repository;
 
+import java.util.List;
 import java.util.Optional;
 
 import org.springframework.data.jpa.repository.JpaRepository;
@@ -10,4 +11,6 @@ public interface CertificateRepository extends JpaRepository<CertificateEntity, 
     Optional<CertificateEntity> findByCa_CaId(Long caId);
 
     Optional<CertificateEntity> findByCertificateIdAndSignedCa_CaId(Long certificateId, Long caId);
+
+    Optional<List<CertificateEntity>> findBySignedCa_CaIdAndCaIsNull(Long signedCaCaId);
 }
