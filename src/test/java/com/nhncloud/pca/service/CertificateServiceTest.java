@@ -10,6 +10,10 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageImpl;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
 
 import com.nhncloud.pca.CommonTestUtil;
 import com.nhncloud.pca.constant.CaStatus;
@@ -24,6 +28,7 @@ import com.nhncloud.pca.model.certificate.CertificateInfo;
 import com.nhncloud.pca.model.request.ca.RequestBodyForCreateCA;
 import com.nhncloud.pca.model.response.ca.ResponseBodyForCreateCA;
 import com.nhncloud.pca.model.response.ca.ResponseBodyForReadCA;
+import com.nhncloud.pca.model.response.ca.ResponseBodyForReadCAList;
 import com.nhncloud.pca.model.response.ca.ResponseBodyForReadChainCA;
 import com.nhncloud.pca.model.response.ca.ResponseBodyForUpdateCA;
 import com.nhncloud.pca.model.response.certificate.ResponseBodyForCreateCert;
@@ -146,13 +151,13 @@ public class CertificateServiceTest {
     public void test_CA_업데이트_성공() {
         CaEntity ca = CommonTestUtil.createTestCaEntity();
         CaEntity saveCa = CommonTestUtil.createTestCaEntity();
-        saveCa.setStatus(CaStatus.INACTIVE);
+        saveCa.setStatus(CaStatus.DISABLED);
         when(caRepository.findById(any())).thenReturn(Optional.of(ca));
         when(caRepository.save(any())).thenReturn(saveCa);
 
         ResponseBodyForUpdateCA result = service.updateCA(1L, CommonTestUtil.createTestCertificateRequestBodyForUpdate());
         assertNotNull(result);
-        assertEquals(result.getCaInfo().getStatus(), CaStatus.INACTIVE);
+        assertEquals(result.getCaInfo().getStatus(), CaStatus.DISABLED);
     }
 
     @Test
@@ -183,5 +188,22 @@ public class CertificateServiceTest {
         assertNotNull(result);
         assertEquals(result.getCommonName(), CommonTestUtil.TEST_SUBJECT_INFO_COMMON_NAME);
         assertEquals(result.getCertificatePem(), cert.getCertificatePem());
+    }
+
+    @Test
+    public void test_CA_리스트_조회() {
+        CaEntity ca = CommonTestUtil.createTestCaEntity();
+        Pageable pageable = PageRequest.of(0, 10);
+        List<CaEntity> caList = List.of(ca);
+        Page<CaEntity> page = new PageImpl<>(caList, pageable, caList.size());
+
+        when(caRepository.findAll(any(Pageable.class))).thenReturn(page);
+
+        ResponseBodyForReadCAList result = service.getCaList(0);
+        assertEquals(1, result.getTotalCnt());
+        assertEquals(1, result.getTotalPageNo());
+        assertEquals(1, result.getCurrentPageNo());
+        assertEquals(1, result.getCaInfoList().size());
+        assertEquals(result.getCaInfoList().get(0).getCaInfo().getName(), CommonTestUtil.TEST_CA_INFO_NAME);
     }
 }

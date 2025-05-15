@@ -2,7 +2,9 @@ package com.nhncloud.pca.constant;
 
 public enum CaStatus {
     ACTIVE("ACTIVE"),
-    INACTIVE("INACTIVE"),
+    DISABLED("DISABLED"),
+    EXPIRED("EXPIRED"),
+    DELETE_SCHEDULED("DELETE_SCHEDULED"),
     DELETED("DELETED");
 
     private final String status;

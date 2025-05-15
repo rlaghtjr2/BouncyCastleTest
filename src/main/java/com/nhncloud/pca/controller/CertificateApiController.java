@@ -19,6 +19,7 @@ import com.nhncloud.pca.model.request.ca.RequestBodyForUpdateCA;
 import com.nhncloud.pca.model.request.certificate.RequestBodyForCreateCert;
 import com.nhncloud.pca.model.response.ca.ResponseBodyForCreateCA;
 import com.nhncloud.pca.model.response.ca.ResponseBodyForReadCA;
+import com.nhncloud.pca.model.response.ca.ResponseBodyForReadCAList;
 import com.nhncloud.pca.model.response.ca.ResponseBodyForReadChainCA;
 import com.nhncloud.pca.model.response.ca.ResponseBodyForUpdateCA;
 import com.nhncloud.pca.model.response.certificate.ResponseBodyForCreateCert;
@@ -57,6 +58,12 @@ public class CertificateApiController {
             return ResponseEntity.ok(ApiResponse.fail(50000, e.getMessage()));
         }
         return ResponseEntity.ok(ApiResponse.success(ApiResponse.success(result)));
+    }
+
+    @GetMapping
+    public ResponseEntity<ApiResponse> getCAList(@Nullable @RequestParam(defaultValue = "0") int page) {
+        ResponseBodyForReadCAList result = certificateService.getCaList(page);
+        return ResponseEntity.ok(ApiResponse.success(result));
     }
 
     @GetMapping("/{caId}")

@@ -188,7 +188,7 @@ public class CommonTestUtil {
             .caInfo(createTestCaInfo_Intermediate())
             .build();
 
-        responseBodyForUpdateCA.getCaInfo().setStatus(CaStatus.INACTIVE);
+        responseBodyForUpdateCA.getCaInfo().setStatus(CaStatus.DISABLED);
         return responseBodyForUpdateCA;
     }
 
@@ -240,7 +240,7 @@ public class CommonTestUtil {
 
     public static RequestBodyForUpdateCA createTestCertificateRequestBodyForUpdate() {
         RequestBodyForUpdateCA requestBody = new RequestBodyForUpdateCA();
-        requestBody.setStatus(CaStatus.INACTIVE);
+        requestBody.setStatus(CaStatus.DISABLED);
         return requestBody;
     }
 }

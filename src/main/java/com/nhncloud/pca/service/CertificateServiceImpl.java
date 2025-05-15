@@ -37,6 +37,8 @@ import org.bouncycastle.operator.OperatorCreationException;
 import org.bouncycastle.operator.jcajce.JcaContentSignerBuilder;
 import org.bouncycastle.pkcs.PKCS10CertificationRequest;
 import org.bouncycastle.pkcs.PKCS10CertificationRequestBuilder;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
 
 import com.nhncloud.pca.constant.CaStatus;
@@ -54,6 +56,7 @@ import com.nhncloud.pca.model.request.ca.RequestBodyForUpdateCA;
 import com.nhncloud.pca.model.request.certificate.RequestBodyForCreateCert;
 import com.nhncloud.pca.model.response.ca.ResponseBodyForCreateCA;
 import com.nhncloud.pca.model.response.ca.ResponseBodyForReadCA;
+import com.nhncloud.pca.model.response.ca.ResponseBodyForReadCAList;
 import com.nhncloud.pca.model.response.ca.ResponseBodyForReadChainCA;
 import com.nhncloud.pca.model.response.ca.ResponseBodyForUpdateCA;
 import com.nhncloud.pca.model.response.certificate.ResponseBodyForCreateCert;
@@ -304,6 +307,49 @@ public class CertificateServiceImpl implements CertificateService {
         caEntity.getSignedCertificates().add(certificateEntity);
         certificateEntity.setSignedCa(caEntity);
         caRepository.save(caEntity);
+        return result;
+    }
+
+    @Override
+    public ResponseBodyForReadCAList getCaList(int page) {
+        log.info("getCaList()");
+        PageRequest pageRequest = PageRequest.of(page, 10);
+
+        Page<CaEntity> caEntities = caRepository.findAll(pageRequest);
+
+        List<ResponseBodyForReadCA> caInfoList = caEntities.getContent().stream()
+            .map(caEntity -> {
+                CaInfo caInfo = caMapper.toDto(caEntity);
+
+                X509Certificate certificate = CertificateUtil.parseCertificate(caEntity.getCertificate().getCertificatePem());
+                SubjectInfo subjectInfo = CertificateUtil.parseDnWithBouncyCastle(certificate.getSubjectX500Principal().toString());
+
+                KeyInfo keyInfo = CertificateUtil.getKeyInfo(certificate);
+
+                CertificateInfo caCertificateInfo = CertificateInfo.of(
+                    subjectInfo,
+                    certificate,
+                    keyInfo,
+                    caEntity.getCertificate().getCertificatePem(),
+                    caEntity.getCertificate().getPrivateKeyPem(),
+                    caEntity.getCertificate().getStatus()
+                );
+                caCertificateInfo.setCertificateId(caEntity.getCertificate().getCertificateId());
+                return ResponseBodyForReadCA.of(
+                    caInfo,
+                    caCertificateInfo,
+                    caInfo.getStatus()
+                );
+            })
+            .collect(Collectors.toList());
+
+        ResponseBodyForReadCAList result = ResponseBodyForReadCAList.builder()
+            .caInfoList(caInfoList)
+            .totalCnt(caEntities.getTotalElements())
+            .totalPageNo((long) caEntities.getTotalPages())
+            .currentPageNo((long) caEntities.getNumber() + 1)
+            .build();
+        
         return result;
     }
 

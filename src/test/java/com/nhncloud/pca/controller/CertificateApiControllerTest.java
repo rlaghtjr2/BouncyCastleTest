@@ -1,5 +1,7 @@
 package com.nhncloud.pca.controller;
 
+import java.util.List;
+
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
@@ -11,12 +13,14 @@ import com.nhncloud.pca.CommonTestUtil;
 import com.nhncloud.pca.model.certificate.CertificateInfo;
 import com.nhncloud.pca.model.response.ca.ResponseBodyForCreateCA;
 import com.nhncloud.pca.model.response.ca.ResponseBodyForReadCA;
+import com.nhncloud.pca.model.response.ca.ResponseBodyForReadCAList;
 import com.nhncloud.pca.model.response.ca.ResponseBodyForReadChainCA;
 import com.nhncloud.pca.model.response.ca.ResponseBodyForUpdateCA;
 import com.nhncloud.pca.model.response.certificate.ResponseBodyForReadCert;
 import com.nhncloud.pca.service.CertificateService;
 
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
@@ -164,5 +168,24 @@ public class CertificateApiControllerTest {
             .andExpect(status().isOk())
             .andExpect(jsonPath("$.header.isSuccessful").value(true))
             .andExpect(jsonPath("$.body.commonName").value(CommonTestUtil.TEST_SUBJECT_INFO_COMMON_NAME));
+    }
+
+    @Test
+    public void test_CA_리스트_조회() throws Exception {
+        ResponseBodyForReadCA caCreateResult = CommonTestUtil.createTestCertificateResult_Read();
+        ResponseBodyForReadCAList responseBodyForReadCAList = ResponseBodyForReadCAList.builder()
+            .caInfoList(List.of(caCreateResult))
+            .build();
+
+        when(certificateService.getCaList(anyInt())).thenReturn(responseBodyForReadCAList);
+
+        mockMvc.perform(get("/ca")
+                .param("page", "0")
+                .contentType("application/json"))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.header.isSuccessful").value(true))
+            .andExpect(jsonPath("$.body.caInfoList").isArray())
+            .andExpect(jsonPath("$.body.caInfoList").isNotEmpty())
+            .andExpect(jsonPath("$.body.caInfoList[0].caInfo.name").value(CommonTestUtil.TEST_CERTIFICATE_NAME));
     }
 }
