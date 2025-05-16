@@ -1,4 +1,4 @@
-package com.nhncloud.pca.constant;
+package com.nhncloud.pca.constant.ca;
 
 public enum CaType {
     ROOT("ROOT"),

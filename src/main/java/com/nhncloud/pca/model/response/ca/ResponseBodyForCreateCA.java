@@ -5,7 +5,7 @@ import lombok.Data;
 
 import java.time.LocalDateTime;
 
-import com.nhncloud.pca.constant.CaStatus;
+import com.nhncloud.pca.constant.ca.CaStatus;
 import com.nhncloud.pca.model.ca.CaInfo;
 import com.nhncloud.pca.model.certificate.CertificateInfo;
 

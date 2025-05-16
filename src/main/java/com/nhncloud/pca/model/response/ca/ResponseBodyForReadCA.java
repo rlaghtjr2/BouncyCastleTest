@@ -5,7 +5,7 @@ import lombok.Data;
 
 import java.time.LocalDateTime;
 
-import com.nhncloud.pca.constant.CaStatus;
+import com.nhncloud.pca.constant.ca.CaStatus;
 import com.nhncloud.pca.model.ca.CaInfo;
 import com.nhncloud.pca.model.certificate.CertificateInfo;
 
@@ -22,14 +22,4 @@ public class ResponseBodyForReadCA {
     private String creationUser;
     private LocalDateTime lastChangeDatetime;
     private String lastChangeUser;
-
-    public static ResponseBodyForReadCA of(CaInfo caInfo, CertificateInfo caCertInfo, CaStatus status) {
-        return ResponseBodyForReadCA.builder()
-            .caInfo(caInfo)
-            .certificateInfo(caCertInfo)
-            .status(status)
-            .creationDatetime(LocalDateTime.now())
-            .creationUser("hoseok")
-            .build();
-    }
 }

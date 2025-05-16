@@ -16,8 +16,8 @@ import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 
 import com.nhncloud.pca.CommonTestUtil;
-import com.nhncloud.pca.constant.CaStatus;
-import com.nhncloud.pca.constant.CaType;
+import com.nhncloud.pca.constant.ca.CaStatus;
+import com.nhncloud.pca.constant.ca.CaType;
 import com.nhncloud.pca.entity.CaEntity;
 import com.nhncloud.pca.entity.CertificateEntity;
 import com.nhncloud.pca.mapper.CaMapper;
@@ -105,7 +105,7 @@ public class CertificateServiceTest {
 
 
         when(caRepository.save(any())).thenReturn(new CaEntity());
-        when(certificateRepository.findByCa_CaId(any())).thenReturn(Optional.of(certificate));
+        when(certificateRepository.findByCa_Id(any())).thenReturn(Optional.of(certificate));
         when(caRepository.findById(any())).thenReturn(Optional.of(ca));
         ResponseBodyForCreateCA result = service.generateCa(CommonTestUtil.createTestCertificateRequestBody(), "SUB", 1L);
 
@@ -125,7 +125,7 @@ public class CertificateServiceTest {
         certificate.setSignedCa(ca);
         ca.setSignedCertificates(new ArrayList<>(List.of(certificate)));
 
-        when(certificateRepository.findByCa_CaId(any())).thenReturn(Optional.of(certificate));
+        when(certificateRepository.findByCa_Id(any())).thenReturn(Optional.of(certificate));
         when(caRepository.findById(any())).thenReturn(Optional.of(ca));
         when(caRepository.save(any())).thenReturn(new CaEntity());
 
@@ -144,7 +144,7 @@ public class CertificateServiceTest {
         assertNotNull(result);
         assertEquals(result.getCaInfo().getName(), CommonTestUtil.TEST_CA_INFO_NAME);
         assertEquals(result.getCaInfo().getType(), CaType.ROOT.getType());
-        assertEquals(result.getCaInfo().getCaId(), CommonTestUtil.TEST_CA_INFO_ID);
+        assertEquals(result.getCaInfo().getId(), CommonTestUtil.TEST_CA_INFO_ID);
     }
 
     @Test
@@ -171,7 +171,7 @@ public class CertificateServiceTest {
         cert.setSignedCa(rootCa);
 
 
-        when(certificateRepository.findByCa_CaId(any())).thenReturn(Optional.of(cert));
+        when(certificateRepository.findByCa_Id(any())).thenReturn(Optional.of(cert));
 
         String chainCert = CommonTestUtil.ROOT_CA_CERT_PEM;
         ResponseBodyForReadChainCA result = service.getCAChain(1L);
@@ -182,7 +182,7 @@ public class CertificateServiceTest {
     @Test
     public void test_인증서_조회() {
         CertificateEntity cert = CommonTestUtil.createTestCertificateEntity();
-        when(certificateRepository.findByCertificateIdAndSignedCa_CaId(any(), any())).thenReturn(Optional.of(cert));
+        when(certificateRepository.findByIdAndSignedCa_Id(any(), any())).thenReturn(Optional.of(cert));
 
         ResponseBodyForReadCert result = service.getCert(1L, 1L);
         assertNotNull(result);

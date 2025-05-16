@@ -11,6 +11,7 @@ import java.security.PrivateKey;
 import java.security.Security;
 import java.security.cert.CertificateException;
 import java.security.cert.X509Certificate;
+import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.Date;
 import java.util.List;
@@ -41,13 +42,16 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
 
-import com.nhncloud.pca.constant.CaStatus;
-import com.nhncloud.pca.constant.CaType;
+import com.nhncloud.pca.constant.ca.CaStatus;
+import com.nhncloud.pca.constant.ca.CaType;
+import com.nhncloud.pca.constant.certificate.CertificateStatus;
 import com.nhncloud.pca.entity.CaEntity;
 import com.nhncloud.pca.entity.CertificateEntity;
 import com.nhncloud.pca.mapper.CaMapper;
 import com.nhncloud.pca.mapper.CertificateMapper;
+import com.nhncloud.pca.model.ca.CaDto;
 import com.nhncloud.pca.model.ca.CaInfo;
+import com.nhncloud.pca.model.certificate.CertificateDto;
 import com.nhncloud.pca.model.certificate.CertificateExtension;
 import com.nhncloud.pca.model.certificate.CertificateInfo;
 import com.nhncloud.pca.model.key.KeyInfo;
@@ -115,7 +119,7 @@ public class CertificateServiceImpl implements CertificateService {
         X509Certificate upperCertificate = null;
         if (caType.equals(CaType.SUB.getType())) {
             //3. Intermediate경우 signingKey와 Issuer가 달라짐
-            CertificateEntity upperCa = certificateRepository.findByCa_CaId(caId).orElseThrow(() -> new RuntimeException("CA not found"));
+            CertificateEntity upperCa = certificateRepository.findByCa_Id(caId).orElseThrow(() -> new RuntimeException("CA not found"));
             String upperPrivateKeyPem = upperCa.getPrivateKeyPem();
             String upperCertificatePem = upperCa.getCertificatePem();
             PrivateKey upperPrivateKey = CertificateUtil.parsePrivateKey(upperPrivateKeyPem);
@@ -180,7 +184,7 @@ public class CertificateServiceImpl implements CertificateService {
             requestBody.getKeyInfo(),
             certificatePem,
             privateKeyPem,
-            CaStatus.ACTIVE
+            CertificateStatus.ACTIVE
         );
 
         // 9. Return값
@@ -192,8 +196,12 @@ public class CertificateServiceImpl implements CertificateService {
 
         // 10. DB에 저장
         // 만들어진 CA
-        CaEntity caEntity = caMapper.toEntity(result.getCaInfo());
+        CaDto caDto = CaInfo.toCaDto(caInfo);
+        caDto.setCreationUser("HOSEOK");
+        caDto.setCreationDatetime(LocalDateTime.now());
+        CaEntity caEntity = caMapper.toEntity(caDto);
         caEntity.setType(caType);
+
 
         // 상위CA
         CaEntity upperCaEntity = caEntity;
@@ -203,7 +211,14 @@ public class CertificateServiceImpl implements CertificateService {
         }
 
         // 만들어진 인증서 정보
-        CertificateEntity certificateEntity = certificateMapper.toEntity(result.getCertificateInfo());
+        CertificateDto certificateDto = CertificateInfo.toCertificateDto(caCertificateInfo);
+        certificateDto.setCsr(csrPem);
+        certificateDto.setX509Certificate(certificate);
+
+        certificateDto.setCreationUser("HOSEOK");
+        certificateDto.setCreationDatetime(LocalDateTime.now());
+
+        CertificateEntity certificateEntity = certificateMapper.toEntity(certificateDto);
         // 상위 CA에 만들어진 인증서 정보 저장
         if (upperCaEntity.getSignedCertificates() == null) {
             upperCaEntity.setSignedCertificates(new ArrayList<>());
@@ -215,8 +230,8 @@ public class CertificateServiceImpl implements CertificateService {
         certificateEntity.setCa(caEntity);
         caRepository.save(caEntity);
 
-        result.getCertificateInfo().setCertificateId(certificateEntity.getCertificateId());
-        result.getCaInfo().setCaId(caEntity.getCaId());
+        result.getCertificateInfo().setCertificateId(certificateEntity.getId());
+        result.getCaInfo().setId(caEntity.getId());
         return result;
     }
 
@@ -235,7 +250,7 @@ public class CertificateServiceImpl implements CertificateService {
         //3. 정보 세팅
         SubjectInfo subjectInfo = requestBody.getSubjectInfo();
 
-        CertificateEntity upperCert = certificateRepository.findByCa_CaId(caId).orElseThrow(() -> new RuntimeException("Certificate not found"));
+        CertificateEntity upperCert = certificateRepository.findByCa_Id(caId).orElseThrow(() -> new RuntimeException("Certificate not found"));
         String upperPrivateKeyPem = upperCert.getPrivateKeyPem();
         String upperCertificatePem = upperCert.getCertificatePem();
         PrivateKey upperPrivateKey = CertificateUtil.parsePrivateKey(upperPrivateKeyPem);
@@ -290,6 +305,7 @@ public class CertificateServiceImpl implements CertificateService {
             .privateKeyPem(privateKeyPem)
             .issuer(upperCertificatePem)
             .build();
+
         // 8-2 인증서 정보
         CertificateInfo generateCertInfo = CertificateInfo.of(
             subjectInfo,
@@ -297,13 +313,19 @@ public class CertificateServiceImpl implements CertificateService {
             requestBody.getKeyInfo(),
             certificatePem,
             privateKeyPem,
-            CaStatus.ACTIVE
+            CertificateStatus.ACTIVE
         );
 
         // 10. DB에 저장
         CaEntity caEntity = caRepository.findById(caId).orElseThrow(() -> new RuntimeException("CA not found"));
 
-        CertificateEntity certificateEntity = certificateMapper.toEntity(generateCertInfo);
+        CertificateDto certificateDto = CertificateInfo.toCertificateDto(generateCertInfo);
+        certificateDto.setCsr(csrPem);
+        certificateDto.setX509Certificate(certificate);
+        certificateDto.setCreationUser("HOSEOK");
+        certificateDto.setCreationDatetime(LocalDateTime.now());
+
+        CertificateEntity certificateEntity = certificateMapper.toEntity(certificateDto);
         caEntity.getSignedCertificates().add(certificateEntity);
         certificateEntity.setSignedCa(caEntity);
         caRepository.save(caEntity);
@@ -319,14 +341,19 @@ public class CertificateServiceImpl implements CertificateService {
 
         List<ResponseBodyForReadCA> caInfoList = caEntities.getContent().stream()
             .map(caEntity -> {
-                CaInfo caInfo = caMapper.toDto(caEntity);
-                CertificateInfo caCertificateInfo = getCertificateInfoByCaEntity(caEntity);
+                CaDto caDto = caMapper.toDto(caEntity);
+                CaInfo caInfo = CaInfo.fromCaDto(caDto);
 
-                return ResponseBodyForReadCA.of(
-                    caInfo,
-                    caCertificateInfo,
-                    caInfo.getStatus()
-                );
+                CertificateDto certificateDto = certificateMapper.toDto(caEntity.getCertificate());
+                CertificateInfo caCertificateInfo = getCertificateInfoByCaEntity(certificateDto);
+
+                return ResponseBodyForReadCA.builder().
+                    caInfo(caInfo)
+                    .certificateInfo(caCertificateInfo)
+                    .status(caInfo.getStatus())
+                    .creationDatetime(caDto.getCreationDatetime())
+                    .creationUser(caDto.getCreationUser())
+                    .build();
             })
             .collect(Collectors.toList());
 
@@ -344,14 +371,19 @@ public class CertificateServiceImpl implements CertificateService {
     public ResponseBodyForReadCA getCA(Long caId) {
         log.info("getCA() = {}", caId);
         CaEntity caEntity = caRepository.findById(caId).orElseThrow(() -> new RuntimeException("CA not found"));
-        CaInfo caInfo = caMapper.toDto(caEntity);
-        CertificateInfo caCertificateInfo = getCertificateInfoByCaEntity(caEntity);
+        CaDto caDto = caMapper.toDto(caEntity);
+        CaInfo caInfo = CaInfo.fromCaDto(caDto);
 
-        ResponseBodyForReadCA result = ResponseBodyForReadCA.of(
-            caInfo,
-            caCertificateInfo,
-            caInfo.getStatus()
-        );
+        CertificateDto certificateDto = certificateMapper.toDto(caEntity.getCertificate());
+        CertificateInfo caCertificateInfo = getCertificateInfoByCaEntity(certificateDto);
+
+        ResponseBodyForReadCA result = ResponseBodyForReadCA.builder().
+            caInfo(caInfo)
+            .certificateInfo(caCertificateInfo)
+            .status(caInfo.getStatus())
+            .creationDatetime(caDto.getCreationDatetime())
+            .creationUser(caDto.getCreationUser())
+            .build();
 
         return result;
     }
@@ -364,7 +396,8 @@ public class CertificateServiceImpl implements CertificateService {
 
         CaEntity saveEntity = caRepository.save(caEntity);
 
-        CaInfo caInfo = caMapper.toDto(saveEntity);
+        CaDto caDto = caMapper.toDto(saveEntity);
+        CaInfo caInfo = CaInfo.fromCaDto(caDto);
 
         ResponseBodyForUpdateCA result = ResponseBodyForUpdateCA.builder()
             .caInfo(caInfo)
@@ -376,7 +409,7 @@ public class CertificateServiceImpl implements CertificateService {
     @Override
     public ResponseBodyForReadChainCA getCAChain(Long caId) {
         log.info("getCAChain() = {}", caId);
-        CertificateEntity certificateEntity = certificateRepository.findByCa_CaId(caId).orElseThrow(() -> new RuntimeException("CA not found"));
+        CertificateEntity certificateEntity = certificateRepository.findByCa_Id(caId).orElseThrow(() -> new RuntimeException("CA not found"));
 
         List<String> chainPems = buildCaChain(certificateEntity.getSignedCa().getCertificate());
 
@@ -390,10 +423,11 @@ public class CertificateServiceImpl implements CertificateService {
     @Override
     public ResponseBodyForReadCert getCert(Long caId, Long certId) {
         log.info("getCert() = {}, {}", caId, certId);
-        CertificateEntity certificateEntity = certificateRepository.findByCertificateIdAndSignedCa_CaId(certId, caId)
+        CertificateEntity certificateEntity = certificateRepository.findByIdAndSignedCa_Id(certId, caId)
             .orElseThrow(() -> new RuntimeException("Certificate not found"));
+        CertificateDto certificateDto = certificateMapper.toDto(certificateEntity);
 
-        X509Certificate certificate = CertificateUtil.parseCertificate(certificateEntity.getCertificatePem());
+        X509Certificate certificate = CertificateUtil.parseCertificate(certificateDto.getCertificatePem());
         SubjectInfo subjectInfo = CertificateUtil.parseDnWithBouncyCastle(certificate.getSubjectX500Principal().toString());
         KeyInfo keyInfo = CertificateUtil.getKeyInfo(certificate);
 
@@ -401,9 +435,9 @@ public class CertificateServiceImpl implements CertificateService {
             subjectInfo,
             certificate,
             keyInfo,
-            certificateEntity.getCertificatePem(),
-            certificateEntity.getPrivateKeyPem(),
-            certificateEntity.getStatus()
+            certificateDto.getCertificatePem(),
+            certificateDto.getPrivateKeyPem(),
+            certificateDto.getStatus()
         );
 
         ResponseBodyForReadCert result = ResponseBodyForReadCert.of(certificateInfo);
@@ -413,11 +447,13 @@ public class CertificateServiceImpl implements CertificateService {
     @Override
     public ResponseBodyForReadCertList getCertList(Long caId) {
         log.info("getCertList() = {}", caId);
-        List<CertificateEntity> certificateEntities = certificateRepository.findBySignedCa_CaIdAndCaIsNull(caId).orElseThrow(() -> new RuntimeException("CA not found"));
+        List<CertificateEntity> certificateEntities = certificateRepository.findBySignedCa_IdAndCaIsNull(caId).orElseThrow(() -> new RuntimeException("CA not found"));
 
         List<String> certSerialNumberList = certificateEntities.stream()
             .map(certificateEntity -> {
-                X509Certificate certificate = CertificateUtil.parseCertificate(certificateEntity.getCertificatePem());
+                CertificateDto certificateDto = certificateMapper.toDto(certificateEntity);
+                
+                X509Certificate certificate = CertificateUtil.parseCertificate(certificateDto.getCertificatePem());
                 return CertificateUtil.formatSerialNumber(certificate.getSerialNumber().toByteArray());
             })
             .collect(Collectors.toList());
@@ -442,7 +478,7 @@ public class CertificateServiceImpl implements CertificateService {
     }
 
     private boolean isSelfSigned(CertificateEntity cert) {
-        return cert.getCa().getCaId().equals(cert.getSignedCa().getCaId());
+        return cert.getCa().getId().equals(cert.getSignedCa().getId());
     }
 
     public CertificateInfo generateCsr(RequestBodyForCreateCert requestBody, KeyPair keyPair) {
@@ -549,8 +585,8 @@ public class CertificateServiceImpl implements CertificateService {
         return builder.build();
     }
 
-    private CertificateInfo getCertificateInfoByCaEntity(CaEntity caEntity) {
-        X509Certificate certificate = CertificateUtil.parseCertificate(caEntity.getCertificate().getCertificatePem());
+    private CertificateInfo getCertificateInfoByCaEntity(CertificateDto certificateDto) {
+        X509Certificate certificate = CertificateUtil.parseCertificate(certificateDto.getCertificatePem());
         SubjectInfo subjectInfo = CertificateUtil.parseDnWithBouncyCastle(certificate.getSubjectX500Principal().toString());
 
         KeyInfo keyInfo = CertificateUtil.getKeyInfo(certificate);
@@ -559,11 +595,11 @@ public class CertificateServiceImpl implements CertificateService {
             subjectInfo,
             certificate,
             keyInfo,
-            caEntity.getCertificate().getCertificatePem(),
-            caEntity.getCertificate().getPrivateKeyPem(),
-            caEntity.getCertificate().getStatus()
+            certificateDto.getCertificatePem(),
+            certificateDto.getPrivateKeyPem(),
+            certificateDto.getStatus()
         );
-        caCertificateInfo.setCertificateId(caEntity.getCertificate().getCertificateId());
+        caCertificateInfo.setCertificateId(certificateDto.getId());
 
         return caCertificateInfo;
     }

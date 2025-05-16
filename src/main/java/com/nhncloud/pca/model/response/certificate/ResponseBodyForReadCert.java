@@ -25,7 +25,7 @@ public class ResponseBodyForReadCert {
 
     public static ResponseBodyForReadCert of(CertificateInfo certificateInfo) {
         return ResponseBodyForReadCert.builder()
-            .commonName(certificateInfo.getCommonName())
+            .commonName(certificateInfo.getSubjectInfo().getCommonName())
             .serialNumber(certificateInfo.getSerialNumber())
             .notAfterDateTime(certificateInfo.getNotAfterDateTime())
             .notBeforeDateTime(certificateInfo.getNotBeforeDateTime())

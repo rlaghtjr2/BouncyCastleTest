@@ -8,15 +8,17 @@ import jakarta.persistence.Enumerated;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
+import jakarta.persistence.JoinColumn;
 import jakarta.persistence.OneToMany;
 import jakarta.persistence.OneToOne;
 import jakarta.persistence.Table;
 import lombok.Getter;
 import lombok.Setter;
 
+import java.time.LocalDateTime;
 import java.util.List;
 
-import com.nhncloud.pca.constant.CaStatus;
+import com.nhncloud.pca.constant.ca.CaStatus;
 
 @Entity
 @Getter
@@ -25,7 +27,11 @@ import com.nhncloud.pca.constant.CaStatus;
 public class CaEntity {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
-    Long caId;
+    Long id;
+
+    @OneToOne
+    @JoinColumn(name = "signed_ca_id", nullable = true)
+    CaEntity signedCa;
 
     @Column
     String name;
@@ -36,6 +42,18 @@ public class CaEntity {
     @Enumerated(EnumType.STRING)
     CaStatus status;
 
+    @Column
+    String creationUser;
+
+    @Column
+    LocalDateTime creationDatetime;
+
+    @Column
+    String lastChangeUser;
+
+    @Column
+    LocalDateTime lastChangeDatetime;
+    
     @OneToMany(mappedBy = "signedCa", cascade = CascadeType.ALL)
     List<CertificateEntity> signedCertificates;
 

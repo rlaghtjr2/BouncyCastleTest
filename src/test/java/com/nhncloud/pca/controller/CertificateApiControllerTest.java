@@ -132,7 +132,7 @@ public class CertificateApiControllerTest {
         when(certificateService.updateCA(any(), any())).thenReturn(responseBodyForUpdateCA);
 
         String body = "{\n" +
-            "  \"status\": \"INACTIVE\"\n" +
+            "  \"status\": \"DISABLED\"\n" +
             "  }\n" +
             "}";
         mockMvc.perform(put("/ca/1")
@@ -140,7 +140,7 @@ public class CertificateApiControllerTest {
                 .content(body))
             .andExpect(status().isOk())
             .andExpect(jsonPath("$.header.isSuccessful").value(true))
-            .andExpect(jsonPath("$.body.caInfo.status").value("INACTIVE"));
+            .andExpect(jsonPath("$.body.caInfo.status").value("DISABLED"));
     }
 
     @Test

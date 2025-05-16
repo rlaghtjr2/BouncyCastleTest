@@ -14,7 +14,9 @@ import jakarta.persistence.Table;
 import lombok.Getter;
 import lombok.Setter;
 
-import com.nhncloud.pca.constant.CaStatus;
+import java.time.LocalDateTime;
+
+import com.nhncloud.pca.constant.certificate.CertificateStatus;
 
 @Entity
 @Getter
@@ -23,22 +25,55 @@ import com.nhncloud.pca.constant.CaStatus;
 public class CertificateEntity {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
-    Long certificateId;
+    Long id;
 
     @OneToOne
     @JoinColumn(name = "ca_id", nullable = true)
     CaEntity ca;
 
-    @Enumerated(EnumType.STRING)
-    CaStatus status;
+    @Column
+    String csr;
 
-    @ManyToOne
-    @JoinColumn(name = "signed_ca_id")
-    CaEntity signedCa;
+    @Column
+    String subject;
+
+    @Column
+    String keyAlgorithm;
+
+    @Column
+    String signingAlgorithm;
 
     @Column
     String certificatePem;
 
     @Column
     String privateKeyPem;
+
+    @Column
+    String notBefore;
+
+    @Column
+    String notAfter;
+
+    @ManyToOne
+    @JoinColumn(name = "signed_ca_id")
+    CaEntity signedCa;
+
+    @Enumerated(EnumType.STRING)
+    CertificateStatus status;
+
+    @Column
+    String creationUser;
+
+    @Column
+    LocalDateTime creationDatetime;
+
+    @Column
+    String lastChangeUser;
+
+    @Column
+    LocalDateTime lastChangeDatetime;
 }
+
+
+

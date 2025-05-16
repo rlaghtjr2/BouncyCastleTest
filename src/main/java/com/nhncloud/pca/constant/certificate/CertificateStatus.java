@@ -1,6 +1,6 @@
-package com.nhncloud.pca.constant;
+package com.nhncloud.pca.constant.certificate;
 
-public enum CaStatus {
+public enum CertificateStatus {
     ACTIVE("ACTIVE"),
     DISABLED("DISABLED"),
     EXPIRED("EXPIRED"),
@@ -9,7 +9,7 @@ public enum CaStatus {
 
     private final String status;
 
-    CaStatus(String status) {
+    CertificateStatus(String status) {
         this.status = status;
     }
 
