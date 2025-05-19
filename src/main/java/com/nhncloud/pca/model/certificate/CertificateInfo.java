@@ -5,10 +5,8 @@ import lombok.Data;
 
 import java.security.cert.X509Certificate;
 import java.time.LocalDateTime;
-import java.time.ZoneId;
 
 import com.nhncloud.pca.constant.certificate.CertificateStatus;
-import com.nhncloud.pca.model.key.KeyInfo;
 import com.nhncloud.pca.model.subject.SubjectInfo;
 import com.nhncloud.pca.util.CertificateUtil;
 
@@ -34,32 +32,19 @@ public class CertificateInfo {
 
     private CertificateStatus status;
 
-    public static CertificateInfo of(SubjectInfo subjectInfo, X509Certificate certificate, KeyInfo keyInfo, String certPem, String privateKeyPem, CertificateStatus status) {
+    public static CertificateInfo fromCertificateDtoAndCertificate(CertificateDto certificateDto, X509Certificate certificate) {
         return CertificateInfo.builder()
+            .certificateId(certificateDto.getId())
             .serialNumber(CertificateUtil.formatSerialNumber(certificate.getSerialNumber().toByteArray()))
-            .subjectInfo(subjectInfo)
+            .subjectInfo(CertificateUtil.parseDnWithBouncyCastle(certificateDto.getSubject()))
             .issuer(certificate.getIssuerX500Principal().getName())
-            .notBeforeDateTime(certificate.getNotBefore().toInstant().atZone(ZoneId.systemDefault()).toLocalDateTime())
-            .notAfterDateTime(certificate.getNotAfter().toInstant().atZone(ZoneId.systemDefault()).toLocalDateTime())
-            .certificatePem(certPem)
-            .privateKeyPem(privateKeyPem)
-            .publicKeyAlgorithm(keyInfo.getAlgorithm() + keyInfo.getKeySize())
-            .signatureAlgorithm(certificate.getSigAlgName())
-            .status(status)
-            .build();
-    }
-
-    public static CertificateDto toCertificateDto(CertificateInfo certificateInfo) {
-        return CertificateDto.builder()
-            .id(certificateInfo.getCertificateId())
-            .subject(certificateInfo.getSubjectInfo().toDistinguishedName())
-            .keyAlgorithm(certificateInfo.getPublicKeyAlgorithm())
-            .signingAlgorithm(certificateInfo.getSignatureAlgorithm())
-            .certificatePem(certificateInfo.getCertificatePem())
-            .privateKeyPem(certificateInfo.getPrivateKeyPem())
-            .notBefore(certificateInfo.getNotBeforeDateTime())
-            .notAfter(certificateInfo.getNotAfterDateTime())
-            .status(certificateInfo.getStatus())
+            .publicKeyAlgorithm(certificateDto.getKeyAlgorithm())
+            .signatureAlgorithm(certificateDto.getSigningAlgorithm())
+            .certificatePem(certificateDto.getCertificatePem())
+            .privateKeyPem(certificateDto.getPrivateKeyPem())
+            .notBeforeDateTime(certificateDto.getNotBefore())
+            .notAfterDateTime(certificateDto.getNotAfter())
+            .status(certificateDto.getStatus())
             .build();
     }
 }

@@ -54,6 +54,7 @@ import com.nhncloud.pca.model.ca.CaInfo;
 import com.nhncloud.pca.model.certificate.CertificateDto;
 import com.nhncloud.pca.model.certificate.CertificateExtension;
 import com.nhncloud.pca.model.certificate.CertificateInfo;
+import com.nhncloud.pca.model.csr.CsrInfo;
 import com.nhncloud.pca.model.key.KeyInfo;
 import com.nhncloud.pca.model.request.ca.RequestBodyForCreateCA;
 import com.nhncloud.pca.model.request.ca.RequestBodyForUpdateCA;
@@ -104,8 +105,8 @@ public class CertificateServiceImpl implements CertificateService {
         KeyPair keyPair = generateKeyPair(requestBody.getKeyInfo());
 
         //2. CSR 파일 생성
-        CertificateInfo certificateInfo = generateCsr(requestBody, keyPair);
-        String csrPem = certificateInfo.getCertificatePem();
+        CsrInfo csrInfo = generateCsr(requestBody, keyPair);
+        String csrPem = csrInfo.getCsrPem();
         PKCS10CertificationRequest csr = CertificateUtil.parseCsr(csrPem);
 
         //3. 정보 세팅
@@ -173,35 +174,17 @@ public class CertificateServiceImpl implements CertificateService {
         String certificatePem = CertificateUtil.toPemString(certificate);
         String privateKeyPem = CertificateUtil.toPemString(keyPair.getPrivate());
 
-        // 8. Return 객체 생성
-        // 8-1 Ca 정보
-        CaInfo caInfo = CaInfo.of(requestBody, caType, CaStatus.ACTIVE);
 
-        // 8-2 인증서 정보
-        CertificateInfo caCertificateInfo = CertificateInfo.of(
-            subjectInfo,
-            certificate,
-            requestBody.getKeyInfo(),
-            certificatePem,
-            privateKeyPem,
-            CertificateStatus.ACTIVE
-        );
-
-        // 9. Return값
-        ResponseBodyForCreateCA result = ResponseBodyForCreateCA.of(
-            caInfo,
-            caCertificateInfo,
-            CaStatus.ACTIVE
-        );
-
-        // 10. DB에 저장
-        // 만들어진 CA
-        CaDto caDto = CaInfo.toCaDto(caInfo);
-        caDto.setCreationUser("HOSEOK");
-        caDto.setCreationDatetime(LocalDateTime.now());
+        // 8. DB에 저장
+        // 만든 CA Dto -> Entity
+        CaDto caDto = CaDto.builder()
+            .name(requestBody.getName())
+            .type(caType)
+            .status(CaStatus.ACTIVE)
+            .creationUser("HOSEOK")
+            .creationDatetime(LocalDateTime.now())
+            .build();
         CaEntity caEntity = caMapper.toEntity(caDto);
-        caEntity.setType(caType);
-
 
         // 상위CA
         CaEntity upperCaEntity = caEntity;
@@ -210,15 +193,18 @@ public class CertificateServiceImpl implements CertificateService {
             upperCaEntity = caRepository.findById(caId).orElseThrow(() -> new RuntimeException("CA not found"));
         }
 
-        // 만들어진 인증서 정보
-        CertificateDto certificateDto = CertificateInfo.toCertificateDto(caCertificateInfo);
-        certificateDto.setCsr(csrPem);
+        // 만들어진 인증서 정보 Certificate Dto -> Entity
+        CertificateDto certificateDto = CertificateDto.builder()
+            .csr(csrPem)
+            .status(CertificateStatus.ACTIVE)
+            .certificatePem(certificatePem)
+            .privateKeyPem(privateKeyPem)
+            .creationUser("HOSEOK")
+            .creationDatetime(LocalDateTime.now())
+            .build();
         certificateDto.setX509Certificate(certificate);
-
-        certificateDto.setCreationUser("HOSEOK");
-        certificateDto.setCreationDatetime(LocalDateTime.now());
-
         CertificateEntity certificateEntity = certificateMapper.toEntity(certificateDto);
+
         // 상위 CA에 만들어진 인증서 정보 저장
         if (upperCaEntity.getSignedCertificates() == null) {
             upperCaEntity.setSignedCertificates(new ArrayList<>());
@@ -230,8 +216,24 @@ public class CertificateServiceImpl implements CertificateService {
         certificateEntity.setCa(caEntity);
         caRepository.save(caEntity);
 
-        result.getCertificateInfo().setCertificateId(certificateEntity.getId());
-        result.getCaInfo().setId(caEntity.getId());
+        // 9. Return type 정의
+        // 9-1 Ca 정보
+        CaInfo caInfo = CaInfo.fromCaDto(caMapper.toDto(caEntity));
+
+        // 9-2 인증서 정보
+        CertificateInfo caCertificateInfo = CertificateInfo.fromCertificateDtoAndCertificate(certificateMapper.toDto(certificateEntity), certificate);
+        caCertificateInfo.setSerialNumber(CertificateUtil.formatSerialNumber(certificate.getSerialNumber().toByteArray()));
+        caCertificateInfo.setIssuer(issuerName.toString());
+
+        // 9. Return값
+        ResponseBodyForCreateCA result = ResponseBodyForCreateCA.builder()
+            .caInfo(caInfo)
+            .certificateInfo(caCertificateInfo)
+            .status(caInfo.getStatus())
+            .creationDatetime(caDto.getCreationDatetime())
+            .creationUser(caDto.getCreationUser())
+            .build();
+
         return result;
     }
 
@@ -243,8 +245,8 @@ public class CertificateServiceImpl implements CertificateService {
         KeyPair keyPair = generateKeyPair(requestBody.getKeyInfo());
 
         //2. CSR 파일 생성
-        CertificateInfo certificateInfo = generateCsr(requestBody, keyPair);
-        String csrPem = certificateInfo.getCertificatePem();
+        CsrInfo csrInfo = generateCsr(requestBody, keyPair);
+        String csrPem = csrInfo.getCsrPem();
         PKCS10CertificationRequest csr = CertificateUtil.parseCsr(csrPem);
 
         //3. 정보 세팅
@@ -298,37 +300,36 @@ public class CertificateServiceImpl implements CertificateService {
         String certificatePem = CertificateUtil.toPemString(certificate);
         String privateKeyPem = CertificateUtil.toPemString(keyPair.getPrivate());
 
-        // 8. Return 객체 생성
+        // 8. DB에 저장
+        // 8-1 인증서 정보
+        CertificateDto certificateDto = CertificateDto.builder()
+            .csr(csrPem)
+            .keyAlgorithm(requestBody.getKeyInfo().getAlgorithm())
+            .signingAlgorithm("SHA256withRSA")
+            .certificatePem(certificatePem)
+            .privateKeyPem(privateKeyPem)
+            .status(CertificateStatus.ACTIVE)
+            .creationUser("HOSEOK")
+            .creationDatetime(LocalDateTime.now())
+            .build();
+        certificateDto.setX509Certificate(certificate);
+        CertificateEntity certificateEntity = certificateMapper.toEntity(certificateDto);
+
+        // 8-2 CA 정보
+        CaEntity caEntity = caRepository.findById(caId).orElseThrow(() -> new RuntimeException("CA not found"));
+
+        caEntity.getSignedCertificates().add(certificateEntity);
+        certificateEntity.setSignedCa(caEntity);
+        caRepository.save(caEntity);
+
+        // 9. Return 객체 생성
         ResponseBodyForCreateCert result = ResponseBodyForCreateCert.builder()
-            .serialNo(certificate.getSerialNumber().toString())
+            .serialNo(CertificateUtil.formatSerialNumber(certificate.getSerialNumber().toByteArray()))
             .certificatePem(certificatePem)
             .privateKeyPem(privateKeyPem)
             .issuer(upperCertificatePem)
             .build();
 
-        // 8-2 인증서 정보
-        CertificateInfo generateCertInfo = CertificateInfo.of(
-            subjectInfo,
-            certificate,
-            requestBody.getKeyInfo(),
-            certificatePem,
-            privateKeyPem,
-            CertificateStatus.ACTIVE
-        );
-
-        // 10. DB에 저장
-        CaEntity caEntity = caRepository.findById(caId).orElseThrow(() -> new RuntimeException("CA not found"));
-
-        CertificateDto certificateDto = CertificateInfo.toCertificateDto(generateCertInfo);
-        certificateDto.setCsr(csrPem);
-        certificateDto.setX509Certificate(certificate);
-        certificateDto.setCreationUser("HOSEOK");
-        certificateDto.setCreationDatetime(LocalDateTime.now());
-
-        CertificateEntity certificateEntity = certificateMapper.toEntity(certificateDto);
-        caEntity.getSignedCertificates().add(certificateEntity);
-        certificateEntity.setSignedCa(caEntity);
-        caRepository.save(caEntity);
         return result;
     }
 
@@ -345,7 +346,7 @@ public class CertificateServiceImpl implements CertificateService {
                 CaInfo caInfo = CaInfo.fromCaDto(caDto);
 
                 CertificateDto certificateDto = certificateMapper.toDto(caEntity.getCertificate());
-                CertificateInfo caCertificateInfo = getCertificateInfoByCaEntity(certificateDto);
+                CertificateInfo caCertificateInfo = getCertificateInfoByCertificateDto(certificateDto);
 
                 return ResponseBodyForReadCA.builder().
                     caInfo(caInfo)
@@ -375,7 +376,7 @@ public class CertificateServiceImpl implements CertificateService {
         CaInfo caInfo = CaInfo.fromCaDto(caDto);
 
         CertificateDto certificateDto = certificateMapper.toDto(caEntity.getCertificate());
-        CertificateInfo caCertificateInfo = getCertificateInfoByCaEntity(certificateDto);
+        CertificateInfo caCertificateInfo = getCertificateInfoByCertificateDto(certificateDto);
 
         ResponseBodyForReadCA result = ResponseBodyForReadCA.builder().
             caInfo(caInfo)
@@ -428,19 +429,20 @@ public class CertificateServiceImpl implements CertificateService {
         CertificateDto certificateDto = certificateMapper.toDto(certificateEntity);
 
         X509Certificate certificate = CertificateUtil.parseCertificate(certificateDto.getCertificatePem());
-        SubjectInfo subjectInfo = CertificateUtil.parseDnWithBouncyCastle(certificate.getSubjectX500Principal().toString());
-        KeyInfo keyInfo = CertificateUtil.getKeyInfo(certificate);
 
-        CertificateInfo certificateInfo = CertificateInfo.of(
-            subjectInfo,
-            certificate,
-            keyInfo,
-            certificateDto.getCertificatePem(),
-            certificateDto.getPrivateKeyPem(),
-            certificateDto.getStatus()
-        );
+        CertificateInfo certificateInfo = CertificateInfo.fromCertificateDtoAndCertificate(certificateDto, certificate);
 
-        ResponseBodyForReadCert result = ResponseBodyForReadCert.of(certificateInfo);
+        ResponseBodyForReadCert result = ResponseBodyForReadCert.builder()
+            .commonName(certificateInfo.getSubjectInfo().getCommonName())
+            .serialNumber(certificateInfo.getSerialNumber())
+            .notAfterDateTime(certificateInfo.getNotAfterDateTime())
+            .notBeforeDateTime(certificateInfo.getNotBeforeDateTime())
+            .publicKeyAlgorithm(certificateInfo.getPublicKeyAlgorithm())
+            .certificatePem(certificateInfo.getCertificatePem())
+            .chainCertificatePem(certificateInfo.getChainCertificatePem())
+            .signatureAlgorithm(certificateInfo.getSignatureAlgorithm())
+            .build();
+
         return result;
     }
 
@@ -452,7 +454,7 @@ public class CertificateServiceImpl implements CertificateService {
         List<String> certSerialNumberList = certificateEntities.stream()
             .map(certificateEntity -> {
                 CertificateDto certificateDto = certificateMapper.toDto(certificateEntity);
-                
+
                 X509Certificate certificate = CertificateUtil.parseCertificate(certificateDto.getCertificatePem());
                 return CertificateUtil.formatSerialNumber(certificate.getSerialNumber().toByteArray());
             })
@@ -481,7 +483,7 @@ public class CertificateServiceImpl implements CertificateService {
         return cert.getCa().getId().equals(cert.getSignedCa().getId());
     }
 
-    public CertificateInfo generateCsr(RequestBodyForCreateCert requestBody, KeyPair keyPair) {
+    public CsrInfo generateCsr(RequestBodyForCreateCert requestBody, KeyPair keyPair) {
         log.info("generateCsr() = {}", requestBody);
 
         SubjectInfo subjectInfo = requestBody.getSubjectInfo();
@@ -509,11 +511,11 @@ public class CertificateServiceImpl implements CertificateService {
         String csrPem = CertificateUtil.toPemString(csr);
         String privateKeyPem = CertificateUtil.toPemString(keyPair.getPrivate());
 
-        CertificateInfo certificateInfo = CertificateInfo.builder()
-            .certificatePem(csrPem)
+        CsrInfo csrInfo = CsrInfo.builder()
+            .csrPem(csrPem)
             .privateKeyPem(privateKeyPem).build();
 
-        return certificateInfo;
+        return csrInfo;
     }
 
     private X509Certificate getX509Certificate(X509v3CertificateBuilder certBuilder, PrivateKey privateKey) {
@@ -585,20 +587,14 @@ public class CertificateServiceImpl implements CertificateService {
         return builder.build();
     }
 
-    private CertificateInfo getCertificateInfoByCaEntity(CertificateDto certificateDto) {
+    private CertificateInfo getCertificateInfoByCertificateDto(CertificateDto certificateDto) {
         X509Certificate certificate = CertificateUtil.parseCertificate(certificateDto.getCertificatePem());
-        SubjectInfo subjectInfo = CertificateUtil.parseDnWithBouncyCastle(certificate.getSubjectX500Principal().toString());
 
-        KeyInfo keyInfo = CertificateUtil.getKeyInfo(certificate);
-
-        CertificateInfo caCertificateInfo = CertificateInfo.of(
-            subjectInfo,
-            certificate,
-            keyInfo,
-            certificateDto.getCertificatePem(),
-            certificateDto.getPrivateKeyPem(),
-            certificateDto.getStatus()
+        CertificateInfo caCertificateInfo = CertificateInfo.fromCertificateDtoAndCertificate(
+            certificateDto,
+            certificate
         );
+
         caCertificateInfo.setCertificateId(certificateDto.getId());
 
         return caCertificateInfo;

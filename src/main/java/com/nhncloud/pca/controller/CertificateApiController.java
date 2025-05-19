@@ -57,7 +57,7 @@ public class CertificateApiController {
         } catch (Exception e) {
             return ResponseEntity.ok(ApiResponse.fail(50000, e.getMessage()));
         }
-        return ResponseEntity.ok(ApiResponse.success(ApiResponse.success(result)));
+        return ResponseEntity.ok(ApiResponse.success(result));
     }
 
     @GetMapping

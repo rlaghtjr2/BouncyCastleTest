@@ -23,13 +23,4 @@ public class ResponseBodyForCreateCA {
     private LocalDateTime lastChangeDatetime;
     private String lastChangeUser;
 
-    public static ResponseBodyForCreateCA of(CaInfo caInfo, CertificateInfo caCertInfo, CaStatus caStatus) {
-        return ResponseBodyForCreateCA.builder()
-            .caInfo(caInfo)
-            .certificateInfo(caCertInfo)
-            .status(caStatus)
-            .creationDatetime(LocalDateTime.now())
-            .creationUser("hoseok")
-            .build();
-    }
 }

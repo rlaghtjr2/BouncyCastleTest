@@ -8,5 +8,4 @@ import com.nhncloud.pca.model.request.certificate.RequestBodyForCreateCert;
 public class RequestBodyForCreateCA extends RequestBodyForCreateCert {
     private String name;
     private String description;
-    private Long rootCaId;
 }

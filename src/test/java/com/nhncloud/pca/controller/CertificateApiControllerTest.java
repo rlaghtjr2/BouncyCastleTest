@@ -160,7 +160,17 @@ public class CertificateApiControllerTest {
     @Test
     public void test_인증서_조회() throws Exception {
         CertificateInfo certificateInfo = CommonTestUtil.createTestRootCaCertificateInfo();
-        ResponseBodyForReadCert result = ResponseBodyForReadCert.of(certificateInfo);
+        ResponseBodyForReadCert result = ResponseBodyForReadCert.builder()
+            .commonName(certificateInfo.getSubjectInfo().getCommonName())
+            .serialNumber(certificateInfo.getSerialNumber())
+            .notAfterDateTime(certificateInfo.getNotAfterDateTime())
+            .notBeforeDateTime(certificateInfo.getNotBeforeDateTime())
+            .publicKeyAlgorithm(certificateInfo.getPublicKeyAlgorithm())
+            .certificatePem(certificateInfo.getCertificatePem())
+            .chainCertificatePem(certificateInfo.getChainCertificatePem())
+            .signatureAlgorithm(certificateInfo.getSignatureAlgorithm())
+            .build();
+
         when(certificateService.getCert(any(), any())).thenReturn(result);
 
         mockMvc.perform(get("/ca/1/cert/1")

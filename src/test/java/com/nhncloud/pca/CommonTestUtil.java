@@ -112,43 +112,63 @@ public class CommonTestUtil {
     }
 
     public static CertificateInfo createTestRootCaCertificateInfo() {
-        CertificateInfo certificateInfo = CertificateInfo.of(
-            createTestSubjectInfo(),
-            generateSelfSignedCertificate(),
-            createTestKeyInfo(),
-            ROOT_CA_CERT_PEM,
-            ROOT_CA_KEY_PEM,
-            CertificateStatus.ACTIVE
-        );
+        CertificateInfo certificateInfo = CertificateInfo.builder()
+            .certificateId(TEST_CERTIFICATE_INFO_ID)
+            .serialNumber(TEST_CERTIFICATE_INFO_SERIAL_NUMBER)
+            .subjectInfo(createTestSubjectInfo())
+            .issuer(TEST_CERTIFICATE_INFO_ISSUER)
+            .notBeforeDateTime(TEST_CERTIFICATE_INFO_NOT_BEFORE)
+            .notAfterDateTime(TEST_CERTIFICATE_INFO_NOT_AFTER)
+            .certificatePem(TEST_CERTIFICATE_INFO_CERTIFICATE_PEM)
+            .chainCertificatePem(TEST_CERTIFICATE_INFO_CHAIN_CERTIFICATE_PEM)
+            .privateKeyPem(ROOT_CA_KEY_PEM)
+            .publicKeyAlgorithm(TEST_CERTIFICATE_INFO_PUBLIC_KEY_ALGORITHM)
+            .signatureAlgorithm(TEST_CERTIFICATE_INFO_SIGNATURE_ALGORITHM)
+            .status(CertificateStatus.ACTIVE)
+            .build();
         return certificateInfo;
     }
 
     public static CaInfo createTestCaInfo_Root() {
-        CaInfo caInfo = CaInfo.of(createTestCertificateRequestBody(), CaType.ROOT.getType(), CaStatus.ACTIVE);
+        CaInfo caInfo = CaInfo.builder()
+            .id(TEST_CA_INFO_ID)
+            .name(TEST_CA_INFO_NAME)
+            .type(CaType.ROOT.getType())
+            .status(CaStatus.ACTIVE)
+            .build();
         return caInfo;
     }
 
     public static ResponseBodyForCreateCA createTestCertificateResult_Root() {
-        ResponseBodyForCreateCA responseBodyForCreateCA = ResponseBodyForCreateCA.of(
-            createTestCaInfo_Root(),
-            createTestRootCaCertificateInfo(),
-            TEST_CERTIFICATE_INFO_STATUS
-        );
+        ResponseBodyForCreateCA responseBodyForCreateCA = ResponseBodyForCreateCA.builder()
+            .caInfo(createTestCaInfo_Root())
+            .certificateInfo(createTestRootCaCertificateInfo())
+            .status(CaStatus.ACTIVE)
+            .creationDatetime(LocalDateTime.now())
+            .creationUser("HOSEOK")
+            .build();
 
         return responseBodyForCreateCA;
     }
 
     public static CaInfo createTestCaInfo_Intermediate() {
-        CaInfo caInfo = CaInfo.of(createTestCertificateRequestBody(), CaType.SUB.getType(), CaStatus.ACTIVE);
+        CaInfo caInfo = CaInfo.builder()
+            .id(TEST_CA_INFO_ID)
+            .name(TEST_CA_INFO_NAME)
+            .type(CaType.SUB.getType())
+            .status(CaStatus.ACTIVE)
+            .build();
         return caInfo;
     }
 
     public static ResponseBodyForCreateCA createTestCertificateResult_Intermediate() {
-        ResponseBodyForCreateCA responseBodyForCreateCA = ResponseBodyForCreateCA.of(
-            createTestCaInfo_Intermediate(),
-            createTestRootCaCertificateInfo(),
-            TEST_CERTIFICATE_INFO_STATUS
-        );
+        ResponseBodyForCreateCA responseBodyForCreateCA = ResponseBodyForCreateCA.builder()
+            .caInfo(createTestCaInfo_Intermediate())
+            .certificateInfo(createTestRootCaCertificateInfo())
+            .status(CaStatus.ACTIVE)
+            .creationDatetime(LocalDateTime.now())
+            .creationUser("HOSEOK")
+            .build();
 
         return responseBodyForCreateCA;
     }
