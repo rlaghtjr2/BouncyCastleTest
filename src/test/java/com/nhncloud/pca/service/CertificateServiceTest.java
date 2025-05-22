@@ -1,6 +1,6 @@
 package com.nhncloud.pca.service;
 
-import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
 
@@ -18,6 +18,7 @@ import org.springframework.data.domain.Pageable;
 import com.nhncloud.pca.CommonTestUtil;
 import com.nhncloud.pca.constant.ca.CaStatus;
 import com.nhncloud.pca.constant.ca.CaType;
+import com.nhncloud.pca.constant.certificate.CertificateStatus;
 import com.nhncloud.pca.entity.CaEntity;
 import com.nhncloud.pca.entity.CertificateEntity;
 import com.nhncloud.pca.mapper.CaMapper;
@@ -71,7 +72,9 @@ public class CertificateServiceTest {
 
     @Test
     public void test_rootCA_정상_생성() {
-        when(caRepository.save(any())).thenReturn(new CaEntity());
+        CaEntity caEntity = new CaEntity();
+        caEntity.setId(1L);
+        when(caRepository.save(any())).thenReturn(caEntity);
 
         ResponseBodyForCreateCA result = service.generateCa(CommonTestUtil.createTestCertificateRequestBody(), "ROOT", null);
 
@@ -94,20 +97,20 @@ public class CertificateServiceTest {
     @Test
     public void test_generateIntermediateCa_정상_생성() {
         CertificateInfo certificateInfo = CommonTestUtil.createTestRootCaCertificateInfo();
-        CaEntity ca = new CaEntity();
-        ca.setName("TEST_CA_NAME");
-        ca.setType(CaType.ROOT.getType());
+
+        CaEntity ca = CommonTestUtil.createTestCaEntity();
+
         CertificateEntity certificate = new CertificateEntity();
+        certificate.setStatus(CertificateStatus.ACTIVE);
         certificate.setCertificatePem(certificateInfo.getCertificatePem());
         certificate.setPrivateKeyPem(certificateInfo.getPrivateKeyPem());
-        certificate.setSignedCa(ca);
-        ca.setSignedCertificates(new ArrayList<>(List.of(certificate)));
+        certificate.setCa(ca);
+//        ca.setSignedCertificates(new ArrayList<>(List.of(certificate)));
 
 
-        when(caRepository.save(any())).thenReturn(new CaEntity());
+        when(caRepository.save(any())).thenReturn(ca);
         when(certificateRepository.findByCa_Id(any())).thenReturn(Optional.of(certificate));
-        when(caRepository.findById(any())).thenReturn(Optional.of(ca));
-        ResponseBodyForCreateCA result = service.generateCa(CommonTestUtil.createTestCertificateRequestBody(), "SUB", 1L);
+        ResponseBodyForCreateCA result = service.generateCa(CommonTestUtil.createTestCertificateRequestBody(), "INTERMEDIATE", 1L);
 
         System.out.println(result);
         assertNotNull(result);
@@ -116,18 +119,13 @@ public class CertificateServiceTest {
     @Test
     public void test_generateLeaf인증서_정상_생성() throws Exception {
         CertificateInfo certificateInfo = CommonTestUtil.createTestRootCaCertificateInfo();
-        CaEntity ca = new CaEntity();
-        ca.setName("TEST_CA_NAME");
-        ca.setType(CaType.ROOT.getType());
-        CertificateEntity certificate = new CertificateEntity();
-        certificate.setCertificatePem(certificateInfo.getCertificatePem());
-        certificate.setPrivateKeyPem(certificateInfo.getPrivateKeyPem());
-        certificate.setSignedCa(ca);
-        ca.setSignedCertificates(new ArrayList<>(List.of(certificate)));
+        CaEntity ca = CommonTestUtil.createTestCaEntity();
+        CertificateEntity certificate = CommonTestUtil.createTestCertificateEntity();
+        certificate.setCa(ca);
+//        ca.setSignedCertificates(new ArrayList<>(List.of(certificate)));
 
         when(certificateRepository.findByCa_Id(any())).thenReturn(Optional.of(certificate));
-        when(caRepository.findById(any())).thenReturn(Optional.of(ca));
-        when(caRepository.save(any())).thenReturn(new CaEntity());
+        when(certificateRepository.save(any())).thenReturn(new CertificateEntity());
 
         ResponseBodyForCreateCert result = service.generateCert(CommonTestUtil.createTestCertificateRequestBody(), 1L);
         assertNotNull(result);
@@ -138,7 +136,9 @@ public class CertificateServiceTest {
     @Test
     public void test_CA_조회() {
         CaEntity ca = CommonTestUtil.createTestCaEntity();
-        when(caRepository.findById(any())).thenReturn(Optional.of(ca));
+        CertificateEntity certificate = CommonTestUtil.createTestCertificateEntity();
+        ca.setCertificate(certificate);
+        when(caRepository.findByIdAndStatusNot(any(), any())).thenReturn(Optional.of(ca));
 
         ResponseBodyForReadCA result = service.getCA(1L);
         assertNotNull(result);
@@ -167,13 +167,10 @@ public class CertificateServiceTest {
         CaEntity rootCa = CommonTestUtil.createTestCaEntity();
         rootCa.setCertificate(rootCert);
         rootCert.setCa(rootCa);
-        rootCert.setSignedCa(rootCa);
-        cert.setSignedCa(rootCa);
-
 
         when(certificateRepository.findByCa_Id(any())).thenReturn(Optional.of(cert));
 
-        String chainCert = CommonTestUtil.ROOT_CA_CERT_PEM;
+        String chainCert = String.join("\n", Collections.nCopies(4, CommonTestUtil.ROOT_CA_CERT_PEM));
         ResponseBodyForReadChainCA result = service.getCAChain(1L);
         assertNotNull(result);
         assertEquals(result.getData(), chainCert);
@@ -182,7 +179,7 @@ public class CertificateServiceTest {
     @Test
     public void test_인증서_조회() {
         CertificateEntity cert = CommonTestUtil.createTestCertificateEntity();
-        when(certificateRepository.findByIdAndSignedCa_Id(any(), any())).thenReturn(Optional.of(cert));
+        when(certificateRepository.findByIdAndSignedCaIdAndStatusNot(any(), any(), any())).thenReturn(Optional.of(cert));
 
         ResponseBodyForReadCert result = service.getCert(1L, 1L);
         assertNotNull(result);
@@ -193,11 +190,13 @@ public class CertificateServiceTest {
     @Test
     public void test_CA_리스트_조회() {
         CaEntity ca = CommonTestUtil.createTestCaEntity();
+        CertificateEntity certificate = CommonTestUtil.createTestCertificateEntity();
+        ca.setCertificate(certificate);
         Pageable pageable = PageRequest.of(0, 10);
         List<CaEntity> caList = List.of(ca);
         Page<CaEntity> page = new PageImpl<>(caList, pageable, caList.size());
 
-        when(caRepository.findAll(any(Pageable.class))).thenReturn(page);
+        when(caRepository.findByStatusNot(any(), any(Pageable.class))).thenReturn(page);
 
         ResponseBodyForReadCAList result = service.getCaList(0);
         assertEquals(1, result.getTotalCnt());

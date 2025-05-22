@@ -10,6 +10,7 @@ import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 
 import com.nhncloud.pca.CommonTestUtil;
+import com.nhncloud.pca.constant.ca.CaStatus;
 import com.nhncloud.pca.model.certificate.CertificateInfo;
 import com.nhncloud.pca.model.response.ca.ResponseBodyForCreateCA;
 import com.nhncloud.pca.model.response.ca.ResponseBodyForReadCA;
@@ -72,7 +73,7 @@ public class CertificateApiControllerTest {
                 .content(body))
             .andExpect(status().isOk())
             .andExpect(jsonPath("$.header.isSuccessful").value(true))
-            .andExpect(jsonPath("$.body.caInfo.name").value("TEST_CERTIFICATE_NAME"));
+            .andExpect(jsonPath("$.body.caInfo.name").value(CommonTestUtil.TEST_CA_INFO_NAME));
     }
 
     @Test
@@ -102,13 +103,13 @@ public class CertificateApiControllerTest {
             "  }\n" +
             "}";
         mockMvc.perform(post("/ca")
-                .param("caType", "SUB")
+                .param("caType", "INTERMEDIATE")
                 .param("caId", "1")
                 .contentType("application/json")
                 .content(body))
             .andExpect(status().isOk())
             .andExpect(jsonPath("$.header.isSuccessful").value(true))
-            .andExpect(jsonPath("$.body.certificateInfo.commonName").value("TEST_SUBJECT_INFO_COMMON_NAME"));
+            .andExpect(jsonPath("$.body.certificateInfo.subjectInfo.commonName").value(CommonTestUtil.TEST_SUBJECT_INFO_COMMON_NAME));
     }
 
     @Test
@@ -118,11 +119,11 @@ public class CertificateApiControllerTest {
         when(certificateService.getCA(any())).thenReturn(caCreateResult);
 
         mockMvc.perform(get("/ca/1")
-                .param("caType", "SUB")
+                .param("caType", "INTERMEDIATE")
                 .contentType("application/json"))
             .andExpect(status().isOk())
             .andExpect(jsonPath("$.header.isSuccessful").value(true))
-            .andExpect(jsonPath("$.body.certificateInfo.commonName").value("TEST_SUBJECT_INFO_COMMON_NAME"));
+            .andExpect(jsonPath("$.body.certificateInfo.subjectInfo.commonName").value(CommonTestUtil.TEST_SUBJECT_INFO_COMMON_NAME));
     }
 
     @Test
@@ -140,7 +141,7 @@ public class CertificateApiControllerTest {
                 .content(body))
             .andExpect(status().isOk())
             .andExpect(jsonPath("$.header.isSuccessful").value(true))
-            .andExpect(jsonPath("$.body.caInfo.status").value("DISABLED"));
+            .andExpect(jsonPath("$.body.caInfo.status").value(CaStatus.DISABLED.toString()));
     }
 
     @Test
@@ -196,6 +197,6 @@ public class CertificateApiControllerTest {
             .andExpect(jsonPath("$.header.isSuccessful").value(true))
             .andExpect(jsonPath("$.body.caInfoList").isArray())
             .andExpect(jsonPath("$.body.caInfoList").isNotEmpty())
-            .andExpect(jsonPath("$.body.caInfoList[0].caInfo.name").value(CommonTestUtil.TEST_CERTIFICATE_NAME));
+            .andExpect(jsonPath("$.body.caInfoList[0].caInfo.name").value(CommonTestUtil.TEST_CA_INFO_NAME));
     }
 }

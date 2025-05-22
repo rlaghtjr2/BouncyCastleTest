@@ -5,12 +5,13 @@ import java.util.Optional;
 
 import org.springframework.data.jpa.repository.JpaRepository;
 
+import com.nhncloud.pca.constant.certificate.CertificateStatus;
 import com.nhncloud.pca.entity.CertificateEntity;
 
 public interface CertificateRepository extends JpaRepository<CertificateEntity, Long> {
     Optional<CertificateEntity> findByCa_Id(Long caId);
 
-    Optional<CertificateEntity> findByIdAndSignedCa_Id(Long certificateId, Long caId);
+    Optional<CertificateEntity> findByIdAndSignedCaIdAndStatusNot(Long certificateId, String caId, CertificateStatus status);
 
-    Optional<List<CertificateEntity>> findBySignedCa_IdAndCaIsNull(Long signedCaCaId);
+    Optional<List<CertificateEntity>> findBySignedCaIdAndCaIsNullAndStatusNot(String signedCaCaId, CertificateStatus status);
 }

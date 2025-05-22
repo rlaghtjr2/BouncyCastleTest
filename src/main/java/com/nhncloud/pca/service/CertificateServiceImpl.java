@@ -13,8 +13,10 @@ import java.security.cert.CertificateException;
 import java.security.cert.X509Certificate;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Date;
 import java.util.List;
+import java.util.Optional;
 import java.util.stream.Collectors;
 import javax.security.auth.x500.X500Principal;
 
@@ -41,6 +43,7 @@ import org.bouncycastle.pkcs.PKCS10CertificationRequestBuilder;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import com.nhncloud.pca.constant.ca.CaStatus;
 import com.nhncloud.pca.constant.ca.CaType;
@@ -98,18 +101,14 @@ public class CertificateServiceImpl implements CertificateService {
     }
 
     @Override
+    @Transactional
     public ResponseBodyForCreateCA generateCa(RequestBodyForCreateCA requestBody, String caType, Long caId) {
         log.info("generateCa() = {}, caType = {}", requestBody, caType);
 
         //1. 인증서 생성에 사용할 Key 만들기
         KeyPair keyPair = generateKeyPair(requestBody.getKeyInfo());
 
-        //2. CSR 파일 생성
-        CsrInfo csrInfo = generateCsr(requestBody, keyPair);
-        String csrPem = csrInfo.getCsrPem();
-        PKCS10CertificationRequest csr = CertificateUtil.parseCsr(csrPem);
-
-        //3. 정보 세팅
+        //2. 정보 세팅
         SubjectInfo subjectInfo = requestBody.getSubjectInfo();
 
         X500Name issuerName = new X500Name(subjectInfo.toDistinguishedName());
@@ -118,9 +117,16 @@ public class CertificateServiceImpl implements CertificateService {
         PrivateKey signingKey = keyPair.getPrivate();
 
         X509Certificate upperCertificate = null;
-        if (caType.equals(CaType.SUB.getType())) {
+        if (caType.equals(CaType.INTERMEDIATE.getType())) {
             //3. Intermediate경우 signingKey와 Issuer가 달라짐
             CertificateEntity upperCa = certificateRepository.findByCa_Id(caId).orElseThrow(() -> new RuntimeException("CA not found"));
+
+            CaDto upperCaDto = caMapper.toDto(upperCa.getCa());
+            if (upperCaDto.getStatus() != CaStatus.ACTIVE) {
+                // findBy..에서 처리할 수 도 있지만, 다른 Exception을 줘야히지 않을까?싶어 보류
+                throw new RuntimeException("Upper CA is not ACTIVE");
+            }
+
             String upperPrivateKeyPem = upperCa.getPrivateKeyPem();
             String upperCertificatePem = upperCa.getCertificatePem();
             PrivateKey upperPrivateKey = CertificateUtil.parsePrivateKey(upperPrivateKeyPem);
@@ -130,6 +136,12 @@ public class CertificateServiceImpl implements CertificateService {
             issuerName = getReversedDistinguishedName(upperCertificate.getSubjectX500Principal());
 
         }
+
+        //3. CSR 파일 생성
+        CsrInfo csrInfo = generateCsr(requestBody, keyPair);
+        String csrPem = csrInfo.getCsrPem();
+        PKCS10CertificationRequest csr = CertificateUtil.parseCsr(csrPem);
+
 
         // 4. Builder 생성
         X509v3CertificateBuilder certBuilder = getCertificateBuilder(
@@ -154,7 +166,7 @@ public class CertificateServiceImpl implements CertificateService {
                 new JcaX509ExtensionUtils().createSubjectKeyIdentifier(csr.getSubjectPublicKeyInfo())
             ));
             // Intermediate일 경우 Authority Key Identifier 추가
-            if (caType.equals(CaType.SUB.getType())) {
+            if (caType.equals(CaType.INTERMEDIATE.getType())) {
                 extensions.add(new CertificateExtension(
                     Extension.authorityKeyIdentifier,
                     false,
@@ -176,7 +188,7 @@ public class CertificateServiceImpl implements CertificateService {
 
 
         // 8. DB에 저장
-        // 만든 CA Dto -> Entity
+        // 8-1 CA 저장
         CaDto caDto = CaDto.builder()
             .name(requestBody.getName())
             .type(caType)
@@ -185,16 +197,19 @@ public class CertificateServiceImpl implements CertificateService {
             .creationDatetime(LocalDateTime.now())
             .build();
         CaEntity caEntity = caMapper.toEntity(caDto);
+        caEntity = caRepository.save(caEntity);
 
-        // 상위CA
-        CaEntity upperCaEntity = caEntity;
-        if (caType.equals(CaType.SUB.getType())) {
-            // SUB인경우 상위CA를 DB에서 불러옴
-            upperCaEntity = caRepository.findById(caId).orElseThrow(() -> new RuntimeException("CA not found"));
-        }
+        // 8-2 signedCa를 저장
+        CaEntity upperCaEntity = Optional.ofNullable(caId)
+            .map(caRepository::getReferenceById)
+            .orElse(caEntity);
+        caEntity.setSignedCa(upperCaEntity);
+        caRepository.save(caEntity);
 
+        // 8-2 인증서 저장
         // 만들어진 인증서 정보 Certificate Dto -> Entity
         CertificateDto certificateDto = CertificateDto.builder()
+            .ca(CaDto.builder().id(caEntity.getId()).build())
             .csr(csrPem)
             .status(CertificateStatus.ACTIVE)
             .certificatePem(certificatePem)
@@ -205,16 +220,14 @@ public class CertificateServiceImpl implements CertificateService {
         certificateDto.setX509Certificate(certificate);
         CertificateEntity certificateEntity = certificateMapper.toEntity(certificateDto);
 
-        // 상위 CA에 만들어진 인증서 정보 저장
-        if (upperCaEntity.getSignedCertificates() == null) {
-            upperCaEntity.setSignedCertificates(new ArrayList<>());
-        }
-        upperCaEntity.getSignedCertificates().add(certificateEntity);
+        // 인증서 Entity에 정보 세팅
+        String caEntityId = caEntity.getId().toString();
+        String signedCaId = Optional.ofNullable(upperCaEntity.getCertificate())
+            .map(cert -> cert.getSignedCaId() + "," + caEntityId)
+            .orElse(caEntityId);
+        certificateEntity.setSignedCaId(signedCaId);
 
-        certificateEntity.setSignedCa(upperCaEntity);
-        // CA 정보 저장
-        certificateEntity.setCa(caEntity);
-        caRepository.save(caEntity);
+        certificateRepository.save(certificateEntity);
 
         // 9. Return type 정의
         // 9-1 Ca 정보
@@ -244,24 +257,28 @@ public class CertificateServiceImpl implements CertificateService {
         //1. 인증서 생성에 사용할 Key 만들기
         KeyPair keyPair = generateKeyPair(requestBody.getKeyInfo());
 
-        //2. CSR 파일 생성
-        CsrInfo csrInfo = generateCsr(requestBody, keyPair);
-        String csrPem = csrInfo.getCsrPem();
-        PKCS10CertificationRequest csr = CertificateUtil.parseCsr(csrPem);
-
-        //3. 정보 세팅
+        //2. 정보 세팅
         SubjectInfo subjectInfo = requestBody.getSubjectInfo();
 
-        CertificateEntity upperCert = certificateRepository.findByCa_Id(caId).orElseThrow(() -> new RuntimeException("Certificate not found"));
-        String upperPrivateKeyPem = upperCert.getPrivateKeyPem();
-        String upperCertificatePem = upperCert.getCertificatePem();
-        PrivateKey upperPrivateKey = CertificateUtil.parsePrivateKey(upperPrivateKeyPem);
-        X509Certificate upperCertificate = CertificateUtil.parseCertificate(upperCertificatePem);
+        CertificateEntity upperCertEntity = certificateRepository.findByCa_Id(caId).orElseThrow(() -> new RuntimeException("Certificate not found"));
+        CertificateDto upperCertDto = certificateMapper.toDto(upperCertEntity);
+        CaDto upperCaDto = caMapper.toDto(upperCertEntity.getCa());
+        if (upperCaDto.getStatus() != CaStatus.ACTIVE) {
+            // findBy..에서 처리할 수 도 있지만, 다른 Exception을 줘야히지 않을까?싶어 보류
+            throw new RuntimeException("Upper CA is not ACTIVE");
+        }
+
+        PrivateKey upperPrivateKey = CertificateUtil.parsePrivateKey(upperCertDto.getPrivateKeyPem());
+        X509Certificate upperCertificate = CertificateUtil.parseCertificate(upperCertDto.getCertificatePem());
 
         PrivateKey signingKey = upperPrivateKey;
         X500Name subjectName = new X500Name(subjectInfo.toDistinguishedName());
-        X500Name issuerName = getReversedDistinguishedName(upperCertificate.getSubjectX500Principal());
+        X500Name issuerName = new X500Name(upperCertDto.getSubject());
 
+        //3. CSR 파일 생성
+        CsrInfo csrInfo = generateCsr(requestBody, keyPair);
+        String csrPem = csrInfo.getCsrPem();
+        PKCS10CertificationRequest csr = CertificateUtil.parseCsr(csrPem);
 
         // 4. Builder 생성
         X509v3CertificateBuilder certBuilder = getCertificateBuilder(
@@ -309,25 +326,22 @@ public class CertificateServiceImpl implements CertificateService {
             .certificatePem(certificatePem)
             .privateKeyPem(privateKeyPem)
             .status(CertificateStatus.ACTIVE)
+            .signedCaId(upperCertEntity.getSignedCaId())
             .creationUser("HOSEOK")
             .creationDatetime(LocalDateTime.now())
             .build();
         certificateDto.setX509Certificate(certificate);
         CertificateEntity certificateEntity = certificateMapper.toEntity(certificateDto);
 
-        // 8-2 CA 정보
-        CaEntity caEntity = caRepository.findById(caId).orElseThrow(() -> new RuntimeException("CA not found"));
+        certificateRepository.save(certificateEntity);
 
-        caEntity.getSignedCertificates().add(certificateEntity);
-        certificateEntity.setSignedCa(caEntity);
-        caRepository.save(caEntity);
 
         // 9. Return 객체 생성
         ResponseBodyForCreateCert result = ResponseBodyForCreateCert.builder()
             .serialNo(CertificateUtil.formatSerialNumber(certificate.getSerialNumber().toByteArray()))
             .certificatePem(certificatePem)
             .privateKeyPem(privateKeyPem)
-            .issuer(upperCertificatePem)
+            .issuer(upperCertDto.getCertificatePem())
             .build();
 
         return result;
@@ -338,7 +352,7 @@ public class CertificateServiceImpl implements CertificateService {
         log.info("getCaList()");
         PageRequest pageRequest = PageRequest.of(page, 10);
 
-        Page<CaEntity> caEntities = caRepository.findAll(pageRequest);
+        Page<CaEntity> caEntities = caRepository.findByStatusNot(CaStatus.DELETED, pageRequest);
 
         List<ResponseBodyForReadCA> caInfoList = caEntities.getContent().stream()
             .map(caEntity -> {
@@ -371,7 +385,8 @@ public class CertificateServiceImpl implements CertificateService {
     @Override
     public ResponseBodyForReadCA getCA(Long caId) {
         log.info("getCA() = {}", caId);
-        CaEntity caEntity = caRepository.findById(caId).orElseThrow(() -> new RuntimeException("CA not found"));
+        CaEntity caEntity = caRepository.findByIdAndStatusNot(caId, CaStatus.DELETED).orElseThrow(() -> new RuntimeException("CA not found"));
+
         CaDto caDto = caMapper.toDto(caEntity);
         CaInfo caInfo = CaInfo.fromCaDto(caDto);
 
@@ -393,12 +408,19 @@ public class CertificateServiceImpl implements CertificateService {
     public ResponseBodyForUpdateCA updateCA(Long caId, RequestBodyForUpdateCA requestBody) {
         log.info("updateCA() = {}", caId);
         CaEntity caEntity = caRepository.findById(caId).orElseThrow(() -> new RuntimeException("CA not found"));
+        CaDto caDto = caMapper.toDto(caEntity);
+
+        if (caDto.getStatus() != CaStatus.ACTIVE && caDto.getStatus() != CaStatus.DISABLED) {
+            // findBy..에서 처리할 수 도 있지만, 다른 Exception을 줘야히지 않을까?싶어 보류
+            throw new RuntimeException("CA is not ACTIVE or DISABLED");
+        }
+
         caEntity.setStatus(requestBody.getStatus());
 
         CaEntity saveEntity = caRepository.save(caEntity);
 
-        CaDto caDto = caMapper.toDto(saveEntity);
-        CaInfo caInfo = CaInfo.fromCaDto(caDto);
+        CaDto saveCaDto = caMapper.toDto(saveEntity);
+        CaInfo caInfo = CaInfo.fromCaDto(saveCaDto);
 
         ResponseBodyForUpdateCA result = ResponseBodyForUpdateCA.builder()
             .caInfo(caInfo)
@@ -411,8 +433,9 @@ public class CertificateServiceImpl implements CertificateService {
     public ResponseBodyForReadChainCA getCAChain(Long caId) {
         log.info("getCAChain() = {}", caId);
         CertificateEntity certificateEntity = certificateRepository.findByCa_Id(caId).orElseThrow(() -> new RuntimeException("CA not found"));
-
-        List<String> chainPems = buildCaChain(certificateEntity.getSignedCa().getCertificate());
+        List<Long> signedCaList = Arrays.stream(certificateEntity.getSignedCaId()
+            .split(",")).map(Long::parseLong).toList();
+        List<String> chainPems = buildCaChain(signedCaList);
 
         return ResponseBodyForReadChainCA.builder()
             .data(chainPems.stream()
@@ -424,7 +447,7 @@ public class CertificateServiceImpl implements CertificateService {
     @Override
     public ResponseBodyForReadCert getCert(Long caId, Long certId) {
         log.info("getCert() = {}, {}", caId, certId);
-        CertificateEntity certificateEntity = certificateRepository.findByIdAndSignedCa_Id(certId, caId)
+        CertificateEntity certificateEntity = certificateRepository.findByIdAndSignedCaIdAndStatusNot(certId, String.valueOf(caId), CertificateStatus.DELETED)
             .orElseThrow(() -> new RuntimeException("Certificate not found"));
         CertificateDto certificateDto = certificateMapper.toDto(certificateEntity);
 
@@ -449,7 +472,7 @@ public class CertificateServiceImpl implements CertificateService {
     @Override
     public ResponseBodyForReadCertList getCertList(Long caId) {
         log.info("getCertList() = {}", caId);
-        List<CertificateEntity> certificateEntities = certificateRepository.findBySignedCa_IdAndCaIsNull(caId).orElseThrow(() -> new RuntimeException("CA not found"));
+        List<CertificateEntity> certificateEntities = certificateRepository.findBySignedCaIdAndCaIsNullAndStatusNot(String.valueOf(caId), CertificateStatus.DELETED).orElseThrow(() -> new RuntimeException("CA not found"));
 
         List<String> certSerialNumberList = certificateEntities.stream()
             .map(certificateEntity -> {
@@ -465,22 +488,14 @@ public class CertificateServiceImpl implements CertificateService {
             .build();
     }
 
-    private List<String> buildCaChain(CertificateEntity certificateEntity) {
+    private List<String> buildCaChain(List<Long> signedCaList) {
         List<String> chain = new ArrayList<>();
 
-        while (!isSelfSigned(certificateEntity)) {
-            chain.add(certificateEntity.getCertificatePem());
-            certificateEntity = certificateEntity.getSignedCa().getCertificate();
-        }
-
-        // 루트 CA도 포함
-        chain.add(certificateEntity.getCertificatePem());
-
+        signedCaList.forEach(id -> {
+            CertificateEntity certificate = certificateRepository.findByCa_Id(id).orElseThrow(() -> new RuntimeException("ChainCertificate not found"));
+            chain.add(certificate.getCertificatePem());
+        });
         return chain;
-    }
-
-    private boolean isSelfSigned(CertificateEntity cert) {
-        return cert.getCa().getId().equals(cert.getSignedCa().getId());
     }
 
     public CsrInfo generateCsr(RequestBodyForCreateCert requestBody, KeyPair keyPair) {

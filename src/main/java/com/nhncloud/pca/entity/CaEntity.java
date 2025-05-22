@@ -9,20 +9,20 @@ import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.JoinColumn;
-import jakarta.persistence.OneToMany;
 import jakarta.persistence.OneToOne;
 import jakarta.persistence.Table;
 import lombok.Getter;
+import lombok.NoArgsConstructor;
 import lombok.Setter;
 
 import java.time.LocalDateTime;
-import java.util.List;
 
 import com.nhncloud.pca.constant.ca.CaStatus;
 
 @Entity
 @Getter
 @Setter
+@NoArgsConstructor
 @Table(name = "PCA_CA")
 public class CaEntity {
     @Id
@@ -53,10 +53,11 @@ public class CaEntity {
 
     @Column
     LocalDateTime lastChangeDatetime;
-    
-    @OneToMany(mappedBy = "signedCa", cascade = CascadeType.ALL)
-    List<CertificateEntity> signedCertificates;
 
     @OneToOne(mappedBy = "ca", cascade = CascadeType.ALL)
     CertificateEntity certificate;
+
+    public CaEntity(Long id) {
+        this.id = id;
+    }
 }

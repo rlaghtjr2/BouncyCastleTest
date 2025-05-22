@@ -61,6 +61,8 @@ public class CommonTestUtil {
     public static final LocalDateTime TEST_CERTIFICATE_INFO_NOT_AFTER = LocalDateTime.parse("2024-10-01T00:00:00");
     public static final String TEST_CERTIFICATE_INFO_CERTIFICATE_PEM = "-----BEGIN CERTIFICATE-----\n...\n-----END CERTIFICATE-----";
     public static final String TEST_CERTIFICATE_INFO_CHAIN_CERTIFICATE_PEM = "-----BEGIN CERTIFICATE-----\n...\n-----END CERTIFICATE-----";
+    public static final String TEST_CERTIFICATE_CSR = "-----BEGIN CERTIFICATE-----\n...\n-----END CERTIFICATE-----";
+
     public static final String TEST_CERTIFICATE_INFO_PUBLIC_KEY_ALGORITHM = "RSA";
     public static final String TEST_CERTIFICATE_INFO_SIGNATURE_ALGORITHM = "SHA256withRSA";
 
@@ -119,7 +121,7 @@ public class CommonTestUtil {
             .issuer(TEST_CERTIFICATE_INFO_ISSUER)
             .notBeforeDateTime(TEST_CERTIFICATE_INFO_NOT_BEFORE)
             .notAfterDateTime(TEST_CERTIFICATE_INFO_NOT_AFTER)
-            .certificatePem(TEST_CERTIFICATE_INFO_CERTIFICATE_PEM)
+            .certificatePem(ROOT_CA_CERT_PEM)
             .chainCertificatePem(TEST_CERTIFICATE_INFO_CHAIN_CERTIFICATE_PEM)
             .privateKeyPem(ROOT_CA_KEY_PEM)
             .publicKeyAlgorithm(TEST_CERTIFICATE_INFO_PUBLIC_KEY_ALGORITHM)
@@ -155,7 +157,7 @@ public class CommonTestUtil {
         CaInfo caInfo = CaInfo.builder()
             .id(TEST_CA_INFO_ID)
             .name(TEST_CA_INFO_NAME)
-            .type(CaType.SUB.getType())
+            .type(CaType.INTERMEDIATE.getType())
             .status(CaStatus.ACTIVE)
             .build();
         return caInfo;
@@ -189,9 +191,9 @@ public class CommonTestUtil {
         caEntity.setId(TEST_CA_INFO_ID);
         caEntity.setName(TEST_CA_INFO_NAME);
         caEntity.setType(TEST_CA_INFO_TYPE);
-
-        CertificateEntity certificateEntity = createTestCertificateEntity();
-        caEntity.setCertificate(certificateEntity);
+        caEntity.setStatus(CaStatus.ACTIVE);
+        caEntity.setCreationUser("HOSEOK");
+        caEntity.setCreationDatetime(LocalDateTime.now());
 
         return caEntity;
     }
@@ -199,9 +201,19 @@ public class CommonTestUtil {
     public static CertificateEntity createTestCertificateEntity() {
         CertificateEntity certificateEntity = new CertificateEntity();
         certificateEntity.setId(TEST_CERTIFICATE_INFO_ID);
+        certificateEntity.setSubject(createTestSubjectInfo().toDistinguishedName());
+        certificateEntity.setCsr(TEST_CERTIFICATE_CSR);
+        certificateEntity.setKeyAlgorithm(TEST_KEY_INFO_ALGORITHM);
+        certificateEntity.setSigningAlgorithm(TEST_CERTIFICATE_INFO_SIGNATURE_ALGORITHM);
+        certificateEntity.setNotBefore(TEST_CERTIFICATE_INFO_NOT_BEFORE.toString());
+        certificateEntity.setNotAfter(TEST_CERTIFICATE_INFO_NOT_AFTER.toString());
         certificateEntity.setCertificatePem(TEST_CERTIFICATE_INFO_CERTIFICATE_PEM);
         certificateEntity.setCertificatePem(ROOT_CA_CERT_PEM);
         certificateEntity.setPrivateKeyPem(ROOT_CA_KEY_PEM);
+        certificateEntity.setSignedCaId("1,2,3,4");
+        certificateEntity.setStatus(CertificateStatus.ACTIVE);
+        certificateEntity.setCreationUser("HOSEOK");
+        certificateEntity.setCreationDatetime(LocalDateTime.now());
         return certificateEntity;
     }
 

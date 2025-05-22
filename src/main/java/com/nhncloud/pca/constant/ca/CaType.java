@@ -2,7 +2,7 @@ package com.nhncloud.pca.constant.ca;
 
 public enum CaType {
     ROOT("ROOT"),
-    SUB("SUB");
+    INTERMEDIATE("INTERMEDIATE");
 
     private final String type;
 

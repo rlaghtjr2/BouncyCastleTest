@@ -16,5 +16,6 @@ public interface CaMapper {
     @Mapping(target = "signedCa", ignore = true)
     CaDto toDto(CaEntity entity);
 
+    @Mapping(target = "signedCa", ignore = true)
     CaEntity toEntity(CaDto dto);
 }

@@ -23,7 +23,7 @@ public class CertificateDto {
     private String privateKeyPem;
     private LocalDateTime notBefore;
     private LocalDateTime notAfter;
-    private CaDto signedCa;
+    private String signedCaId;
     private CertificateStatus status;
     private String creationUser;
     private LocalDateTime creationDatetime;
