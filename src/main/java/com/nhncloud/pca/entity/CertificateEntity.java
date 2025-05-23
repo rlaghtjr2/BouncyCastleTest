@@ -61,6 +61,9 @@ public class CertificateEntity {
     CertificateStatus status;
 
     @Column
+    LocalDateTime deletionDatetime;
+    
+    @Column
     String creationUser;
 
     @Column

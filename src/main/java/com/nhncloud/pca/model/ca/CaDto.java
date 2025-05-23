@@ -16,6 +16,7 @@ public class CaDto {
     private String name;
     private String type;
     private CaStatus status;
+    private LocalDateTime deletionDatetime;
     private String creationUser;
     private LocalDateTime creationDatetime;
     private String lastChangeUser;

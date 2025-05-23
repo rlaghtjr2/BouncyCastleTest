@@ -1,5 +1,6 @@
 package com.nhncloud.pca.service;
 
+import java.time.LocalDateTime;
 import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
@@ -204,5 +205,21 @@ public class CertificateServiceTest {
         assertEquals(1, result.getCurrentPageNo());
         assertEquals(1, result.getCaInfoList().size());
         assertEquals(result.getCaInfoList().get(0).getCaInfo().getName(), CommonTestUtil.TEST_CA_INFO_NAME);
+    }
+
+    @Test
+    public void test_CA_삭제_예정() {
+        CaEntity ca = CommonTestUtil.createTestCaEntity();
+        CaEntity saveCa = CommonTestUtil.createTestCaEntity();
+        saveCa.setStatus(CaStatus.DELETE_SCHEDULED);
+        saveCa.setDeletionDatetime(LocalDateTime.now());
+
+        when(caRepository.findById(any())).thenReturn(Optional.of(ca));
+        when(caRepository.save(any())).thenReturn(saveCa);
+
+        ResponseBodyForUpdateCA result = service.deleteCa(1L);
+
+        assertNotNull(result);
+        assertEquals(result.getCaInfo().getStatus(), CaStatus.DELETE_SCHEDULED);
     }
 }

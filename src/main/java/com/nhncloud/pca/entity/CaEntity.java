@@ -43,6 +43,9 @@ public class CaEntity {
     CaStatus status;
 
     @Column
+    LocalDateTime deletionDatetime;
+
+    @Column
     String creationUser;
 
     @Column

@@ -199,4 +199,20 @@ public class CertificateApiControllerTest {
             .andExpect(jsonPath("$.body.caInfoList").isNotEmpty())
             .andExpect(jsonPath("$.body.caInfoList[0].caInfo.name").value(CommonTestUtil.TEST_CA_INFO_NAME));
     }
+
+    @Test
+    public void test_CA_삭제_예정() throws Exception {
+        ResponseBodyForUpdateCA responseBodyForUpdateCA = CommonTestUtil.createTestCertificateResult_Update();
+        responseBodyForUpdateCA.getCaInfo().setStatus(CaStatus.DELETE_SCHEDULED);
+
+        when(certificateService.deleteCa(any())).thenReturn(responseBodyForUpdateCA);
+
+        mockMvc.perform(put("/ca/1")
+                .param("page", "0")
+                .contentType("application/json"))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.header.isSuccessful").value(true))
+            .andExpect(jsonPath("$.body.caInfo").isNotEmpty())
+            .andExpect(jsonPath("$.body.caInfo.status").value(CaStatus.DELETE_SCHEDULED.toString()));
+    }
 }

@@ -488,6 +488,31 @@ public class CertificateServiceImpl implements CertificateService {
             .build();
     }
 
+    @Override
+    public ResponseBodyForUpdateCA deleteCa(Long caId) {
+        log.info("deleteCa() = {}, {}", caId);
+        CaEntity caEntity = caRepository.findById(caId).orElseThrow(() -> new RuntimeException("CA not found"));
+        CaDto caDto = caMapper.toDto(caEntity);
+
+        if (caDto.getStatus() != CaStatus.ACTIVE && caDto.getStatus() != CaStatus.DISABLED) {
+            // findBy..에서 처리할 수 도 있지만, 다른 Exception을 줘야히지 않을까?싶어 보류
+            throw new RuntimeException("CA is not ACTIVE or DISABLED");
+        }
+
+        caEntity.setStatus(CaStatus.DELETE_SCHEDULED);
+        caEntity.setDeletionDatetime(LocalDateTime.now().plusWeeks(1));
+        CaEntity saveEntity = caRepository.save(caEntity);
+
+        CaDto saveCaDto = caMapper.toDto(saveEntity);
+        CaInfo caInfo = CaInfo.fromCaDto(saveCaDto);
+
+        ResponseBodyForUpdateCA result = ResponseBodyForUpdateCA.builder()
+            .caInfo(caInfo)
+            .build();
+
+        return result;
+    }
+
     private List<String> buildCaChain(List<Long> signedCaList) {
         List<String> chain = new ArrayList<>();
 

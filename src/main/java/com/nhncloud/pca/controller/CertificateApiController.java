@@ -15,7 +15,6 @@ import org.springframework.web.bind.annotation.RestController;
 
 import com.nhncloud.pca.common.response.ApiResponse;
 import com.nhncloud.pca.model.request.ca.RequestBodyForCreateCA;
-import com.nhncloud.pca.model.request.ca.RequestBodyForUpdateCA;
 import com.nhncloud.pca.model.request.certificate.RequestBodyForCreateCert;
 import com.nhncloud.pca.model.response.ca.ResponseBodyForCreateCA;
 import com.nhncloud.pca.model.response.ca.ResponseBodyForReadCA;
@@ -72,12 +71,6 @@ public class CertificateApiController {
         return ResponseEntity.ok(ApiResponse.success(result));
     }
 
-    @PutMapping("/{caId}")
-    public ResponseEntity<ApiResponse> updateCA(@PathVariable("caId") Long caId, @RequestBody RequestBodyForUpdateCA requestBody) {
-        ResponseBodyForUpdateCA result = certificateService.updateCA(caId, requestBody);
-        return ResponseEntity.ok(ApiResponse.success(result));
-    }
-
     @GetMapping("/{caId}/chain")
     public ResponseEntity<ApiResponse> getCAChain(@PathVariable("caId") Long caId) {
         ResponseBodyForReadChainCA result = certificateService.getCAChain(caId);
@@ -93,6 +86,12 @@ public class CertificateApiController {
     @GetMapping("/{caId}/cert")
     public ResponseEntity<ApiResponse> getCertList(@PathVariable("caId") Long caId) {
         ResponseBodyForReadCertList result = certificateService.getCertList(caId);
+        return ResponseEntity.ok(ApiResponse.success(result));
+    }
+
+    @PutMapping("/{caId}")
+    public ResponseEntity<ApiResponse> deleteCa(@PathVariable("caId") Long caId) {
+        ResponseBodyForUpdateCA result = certificateService.deleteCa(caId);
         return ResponseEntity.ok(ApiResponse.success(result));
     }
 }

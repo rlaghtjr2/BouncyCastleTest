@@ -222,7 +222,6 @@ public class CommonTestUtil {
             .caInfo(createTestCaInfo_Intermediate())
             .build();
 
-        responseBodyForUpdateCA.getCaInfo().setStatus(CaStatus.DISABLED);
         return responseBodyForUpdateCA;
     }
 

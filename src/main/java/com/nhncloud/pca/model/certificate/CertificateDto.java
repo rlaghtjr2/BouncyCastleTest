@@ -25,6 +25,7 @@ public class CertificateDto {
     private LocalDateTime notAfter;
     private String signedCaId;
     private CertificateStatus status;
+    private LocalDateTime deletionDatetime;
     private String creationUser;
     private LocalDateTime creationDatetime;
     private String lastChangeUser;
