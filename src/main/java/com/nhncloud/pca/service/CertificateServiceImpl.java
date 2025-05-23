@@ -489,8 +489,8 @@ public class CertificateServiceImpl implements CertificateService {
     }
 
     @Override
-    public ResponseBodyForUpdateCA deleteCa(Long caId) {
-        log.info("deleteCa() = {}, {}", caId);
+    public ResponseBodyForUpdateCA setCaDeletion(Long caId) {
+        log.info("setCaDeletion() = {}, {}", caId);
         CaEntity caEntity = caRepository.findById(caId).orElseThrow(() -> new RuntimeException("CA not found"));
         CaDto caDto = caMapper.toDto(caEntity);
 

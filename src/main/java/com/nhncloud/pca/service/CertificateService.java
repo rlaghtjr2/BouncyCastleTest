@@ -29,7 +29,7 @@ public interface CertificateService {
 
     ResponseBodyForReadCertList getCertList(Long caId);
 
-    ResponseBodyForUpdateCA deleteCa(Long caId);
+    ResponseBodyForUpdateCA setCaDeletion(Long caId);
 
     ResponseBodyForUpdateCA removeCert(Long caId);
 

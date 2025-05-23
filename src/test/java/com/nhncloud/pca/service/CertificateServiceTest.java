@@ -217,7 +217,7 @@ public class CertificateServiceTest {
         when(caRepository.findById(any())).thenReturn(Optional.of(ca));
         when(caRepository.save(any())).thenReturn(saveCa);
 
-        ResponseBodyForUpdateCA result = service.deleteCa(1L);
+        ResponseBodyForUpdateCA result = service.setCaDeletion(1L);
 
         assertNotNull(result);
         assertEquals(result.getCaInfo().getStatus(), CaStatus.DELETE_SCHEDULED);

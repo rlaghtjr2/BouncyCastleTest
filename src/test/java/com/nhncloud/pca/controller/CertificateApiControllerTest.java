@@ -206,9 +206,9 @@ public class CertificateApiControllerTest {
         ResponseBodyForUpdateCA responseBodyForUpdateCA = CommonTestUtil.createTestCertificateResult_Update();
         responseBodyForUpdateCA.getCaInfo().setStatus(CaStatus.DELETE_SCHEDULED);
 
-        when(certificateService.deleteCa(any())).thenReturn(responseBodyForUpdateCA);
+        when(certificateService.setCaDeletion(any())).thenReturn(responseBodyForUpdateCA);
 
-        mockMvc.perform(put("/ca/1")
+        mockMvc.perform(post("/ca/1/delete")
                 .contentType("application/json"))
             .andExpect(status().isOk())
             .andExpect(jsonPath("$.header.isSuccessful").value(true))
