@@ -94,7 +94,13 @@ public class CertificateApiController {
         ResponseBodyForUpdateCA result = certificateService.setCaDeletion(caId);
         return ResponseEntity.ok(ApiResponse.success(result));
     }
-    
+
+    @PostMapping("/{caId}/recover")
+    public ResponseEntity<ApiResponse> unsetCaDeletion(@PathVariable("caId") Long caId) {
+        ResponseBodyForUpdateCA result = certificateService.unsetCaDeletion(caId);
+        return ResponseEntity.ok(ApiResponse.success(result));
+    }
+
     @DeleteMapping("/{caId}")
     public ResponseEntity<ApiResponse> removeCa(@PathVariable("caId") Long caId) {
         ResponseBodyForUpdateCA result = certificateService.removeCert(caId);

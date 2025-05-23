@@ -224,6 +224,24 @@ public class CertificateServiceTest {
     }
 
     @Test
+    public void test_CA_삭제_예정_취소() {
+        CaEntity ca = CommonTestUtil.createTestCaEntity();
+        ca.setStatus(CaStatus.DELETE_SCHEDULED);
+        ca.setDeletionDatetime(LocalDateTime.now());
+        CaEntity saveCa = CommonTestUtil.createTestCaEntity();
+        saveCa.setStatus(CaStatus.ACTIVE);
+
+        when(caRepository.findByIdAndStatus(any(), any())).thenReturn(Optional.of(ca));
+        when(caRepository.save(any())).thenReturn(saveCa);
+
+        ResponseBodyForUpdateCA result = service.unsetCaDeletion(1L);
+
+        assertNotNull(result);
+        assertEquals(result.getCaInfo().getStatus(), CaStatus.ACTIVE);
+    }
+
+
+    @Test
     public void test_CA_즉시_삭제() {
         CaEntity ca = CommonTestUtil.createTestCaEntity();
         CertificateEntity certificate = CommonTestUtil.createTestCertificateEntity();

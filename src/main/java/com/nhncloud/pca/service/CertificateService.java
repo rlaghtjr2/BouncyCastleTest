@@ -31,6 +31,8 @@ public interface CertificateService {
 
     ResponseBodyForUpdateCA setCaDeletion(Long caId);
 
+    ResponseBodyForUpdateCA unsetCaDeletion(Long caId);
+
     ResponseBodyForUpdateCA removeCert(Long caId);
 
     ResponseBodyForUpdateCA activateCa(Long caId);

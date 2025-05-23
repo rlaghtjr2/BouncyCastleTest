@@ -217,6 +217,21 @@ public class CertificateApiControllerTest {
     }
 
     @Test
+    public void test_CA_삭제_예정_취소() throws Exception {
+        ResponseBodyForUpdateCA responseBodyForUpdateCA = CommonTestUtil.createTestCertificateResult_Update();
+        responseBodyForUpdateCA.getCaInfo().setStatus(CaStatus.ACTIVE);
+
+        when(certificateService.unsetCaDeletion(any())).thenReturn(responseBodyForUpdateCA);
+
+        mockMvc.perform(post("/ca/1/recover")
+                .contentType("application/json"))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.header.isSuccessful").value(true))
+            .andExpect(jsonPath("$.body.caInfo").isNotEmpty())
+            .andExpect(jsonPath("$.body.caInfo.status").value(CaStatus.ACTIVE.toString()));
+    }
+
+    @Test
     public void test_CA_삭제() throws Exception {
         ResponseBodyForUpdateCA responseBodyForUpdateCA = CommonTestUtil.createTestCertificateResult_Update();
         responseBodyForUpdateCA.getCaInfo().setStatus(CaStatus.DELETED);
