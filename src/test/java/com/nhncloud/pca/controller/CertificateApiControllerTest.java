@@ -23,6 +23,7 @@ import com.nhncloud.pca.service.CertificateService;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.Mockito.when;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
@@ -208,11 +209,25 @@ public class CertificateApiControllerTest {
         when(certificateService.deleteCa(any())).thenReturn(responseBodyForUpdateCA);
 
         mockMvc.perform(put("/ca/1")
-                .param("page", "0")
                 .contentType("application/json"))
             .andExpect(status().isOk())
             .andExpect(jsonPath("$.header.isSuccessful").value(true))
             .andExpect(jsonPath("$.body.caInfo").isNotEmpty())
             .andExpect(jsonPath("$.body.caInfo.status").value(CaStatus.DELETE_SCHEDULED.toString()));
+    }
+
+    @Test
+    public void test_CA_삭제() throws Exception {
+        ResponseBodyForUpdateCA responseBodyForUpdateCA = CommonTestUtil.createTestCertificateResult_Update();
+        responseBodyForUpdateCA.getCaInfo().setStatus(CaStatus.DELETED);
+
+        when(certificateService.removeCert(any())).thenReturn(responseBodyForUpdateCA);
+
+        mockMvc.perform(delete("/ca/1")
+                .contentType("application/json"))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.header.isSuccessful").value(true))
+            .andExpect(jsonPath("$.body.caInfo").isNotEmpty())
+            .andExpect(jsonPath("$.body.caInfo.status").value(CaStatus.DELETED.toString()));
     }
 }

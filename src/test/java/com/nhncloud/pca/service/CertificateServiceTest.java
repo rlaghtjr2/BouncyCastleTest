@@ -222,4 +222,28 @@ public class CertificateServiceTest {
         assertNotNull(result);
         assertEquals(result.getCaInfo().getStatus(), CaStatus.DELETE_SCHEDULED);
     }
+
+    @Test
+    public void test_CA_즉시_삭제() {
+        CaEntity ca = CommonTestUtil.createTestCaEntity();
+        CertificateEntity certificate = CommonTestUtil.createTestCertificateEntity();
+        ca.setCertificate(certificate);
+        ca.setStatus(CaStatus.DELETE_SCHEDULED);
+
+        CaEntity returnCa = CommonTestUtil.createTestCaEntity();
+        CertificateEntity returnCert = CommonTestUtil.createTestCertificateEntity();
+
+        returnCa.setStatus(CaStatus.DELETED);
+        returnCert.setStatus(CertificateStatus.DELETED);
+
+        returnCa.setCertificate(returnCert);
+
+        when(caRepository.findByIdAndStatus(any(), any())).thenReturn(Optional.of(ca));
+        when(caRepository.save(any())).thenReturn(returnCa);
+
+        ResponseBodyForUpdateCA result = service.removeCert(1L);
+
+        assertNotNull(result);
+        assertEquals(result.getCaInfo().getStatus(), CaStatus.DELETED);
+    }
 }

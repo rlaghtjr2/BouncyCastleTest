@@ -13,4 +13,6 @@ public interface CaRepository extends JpaRepository<CaEntity, Long> {
     Page<CaEntity> findByStatusNot(CaStatus status, Pageable pageable);
 
     Optional<CaEntity> findByIdAndStatusNot(Long id, CaStatus status);
+
+    Optional<CaEntity> findByIdAndStatus(Long id, CaStatus status);
 }

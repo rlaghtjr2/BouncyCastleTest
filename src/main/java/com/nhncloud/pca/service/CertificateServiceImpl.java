@@ -513,6 +513,32 @@ public class CertificateServiceImpl implements CertificateService {
         return result;
     }
 
+    @Override
+    public ResponseBodyForUpdateCA removeCert(Long caId) {
+        log.info("removeCert() = {}", caId);
+
+        CaEntity caEntity = caRepository.findByIdAndStatus(caId, CaStatus.DELETE_SCHEDULED).orElseThrow(() -> new RuntimeException("CA not found"));
+        caEntity.setStatus(CaStatus.DELETED);
+        caEntity.setDeletionDatetime(LocalDateTime.now());
+
+        CertificateEntity certificateEntity = caEntity.getCertificate();
+        certificateEntity.setStatus(CertificateStatus.DELETED);
+        certificateEntity.setDeletionDatetime(LocalDateTime.now());
+
+        caEntity.setCertificate(certificateEntity);
+        //TODO: 하위 CA 삭제 및 인증서들 삭제구현
+
+        CaEntity saveEntity = caRepository.save(caEntity);
+
+        CaDto saveCaDto = caMapper.toDto(saveEntity);
+        CaInfo caInfo = CaInfo.fromCaDto(saveCaDto);
+
+        ResponseBodyForUpdateCA result = ResponseBodyForUpdateCA.builder()
+            .caInfo(caInfo)
+            .build();
+        return result;
+    }
+
     private List<String> buildCaChain(List<Long> signedCaList) {
         List<String> chain = new ArrayList<>();
 

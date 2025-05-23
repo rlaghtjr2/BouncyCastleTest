@@ -4,6 +4,7 @@ import jakarta.annotation.Nullable;
 import lombok.extern.slf4j.Slf4j;
 
 import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -92,6 +93,12 @@ public class CertificateApiController {
     @PutMapping("/{caId}")
     public ResponseEntity<ApiResponse> deleteCa(@PathVariable("caId") Long caId) {
         ResponseBodyForUpdateCA result = certificateService.deleteCa(caId);
+        return ResponseEntity.ok(ApiResponse.success(result));
+    }
+
+    @DeleteMapping("/{caId}")
+    public ResponseEntity<ApiResponse> removeCa(@PathVariable("caId") Long caId) {
+        ResponseBodyForUpdateCA result = certificateService.removeCert(caId);
         return ResponseEntity.ok(ApiResponse.success(result));
     }
 }
