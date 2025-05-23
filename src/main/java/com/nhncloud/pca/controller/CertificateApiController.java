@@ -101,4 +101,16 @@ public class CertificateApiController {
         ResponseBodyForUpdateCA result = certificateService.removeCert(caId);
         return ResponseEntity.ok(ApiResponse.success(result));
     }
+
+    @PostMapping("/{caId}/activate")
+    public ResponseEntity<ApiResponse> activateCa(@PathVariable("caId") Long caId) {
+        ResponseBodyForUpdateCA result = certificateService.activateCa(caId);
+        return ResponseEntity.ok(ApiResponse.success(result));
+    }
+
+    @PostMapping("/{caId}/disable")
+    public ResponseEntity<ApiResponse> disableCa(@PathVariable("caId") Long caId) {
+        ResponseBodyForUpdateCA result = certificateService.disableCa(caId);
+        return ResponseEntity.ok(ApiResponse.success(result));
+    }
 }

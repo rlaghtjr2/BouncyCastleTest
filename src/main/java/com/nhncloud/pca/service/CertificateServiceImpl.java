@@ -539,6 +539,46 @@ public class CertificateServiceImpl implements CertificateService {
         return result;
     }
 
+    @Override
+    public ResponseBodyForUpdateCA activateCa(Long caId) {
+        log.info("activateCa() = {}", caId);
+        CaEntity caEntity = caRepository.findByIdAndStatus(caId, CaStatus.DISABLED).orElseThrow(() -> new RuntimeException("CA not found"));
+        caEntity.setStatus(CaStatus.ACTIVE);
+
+        CertificateEntity certificateEntity = caEntity.getCertificate();
+        certificateEntity.setStatus(CertificateStatus.ACTIVE);
+
+        caEntity.setCertificate(certificateEntity);
+
+        CaEntity saveEntity = caRepository.save(caEntity);
+        CaDto saveCaDto = caMapper.toDto(saveEntity);
+        CaInfo caInfo = CaInfo.fromCaDto(saveCaDto);
+        ResponseBodyForUpdateCA result = ResponseBodyForUpdateCA.builder()
+            .caInfo(caInfo)
+            .build();
+        return result;
+    }
+
+    @Override
+    public ResponseBodyForUpdateCA disableCa(Long caId) {
+        log.info("disableCa() = {}", caId);
+        CaEntity caEntity = caRepository.findByIdAndStatus(caId, CaStatus.ACTIVE).orElseThrow(() -> new RuntimeException("CA not found"));
+        caEntity.setStatus(CaStatus.DISABLED);
+
+        CertificateEntity certificateEntity = caEntity.getCertificate();
+        certificateEntity.setStatus(CertificateStatus.DISABLED);
+
+        caEntity.setCertificate(certificateEntity);
+
+        CaEntity saveEntity = caRepository.save(caEntity);
+        CaDto saveCaDto = caMapper.toDto(saveEntity);
+        CaInfo caInfo = CaInfo.fromCaDto(saveCaDto);
+        ResponseBodyForUpdateCA result = ResponseBodyForUpdateCA.builder()
+            .caInfo(caInfo)
+            .build();
+        return result;
+    }
+
     private List<String> buildCaChain(List<Long> signedCaList) {
         List<String> chain = new ArrayList<>();
 

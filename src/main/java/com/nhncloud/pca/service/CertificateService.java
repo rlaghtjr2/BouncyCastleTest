@@ -32,4 +32,8 @@ public interface CertificateService {
     ResponseBodyForUpdateCA deleteCa(Long caId);
 
     ResponseBodyForUpdateCA removeCert(Long caId);
+
+    ResponseBodyForUpdateCA activateCa(Long caId);
+
+    ResponseBodyForUpdateCA disableCa(Long caId);
 }

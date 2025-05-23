@@ -230,4 +230,34 @@ public class CertificateApiControllerTest {
             .andExpect(jsonPath("$.body.caInfo").isNotEmpty())
             .andExpect(jsonPath("$.body.caInfo.status").value(CaStatus.DELETED.toString()));
     }
+
+    @Test
+    public void test_CA_활성화() throws Exception {
+        ResponseBodyForUpdateCA responseBodyForUpdateCA = CommonTestUtil.createTestCertificateResult_Update();
+        responseBodyForUpdateCA.getCaInfo().setStatus(CaStatus.ACTIVE);
+
+        when(certificateService.activateCa(any())).thenReturn(responseBodyForUpdateCA);
+
+        mockMvc.perform(post("/ca/1/activate")
+                .contentType("application/json"))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.header.isSuccessful").value(true))
+            .andExpect(jsonPath("$.body.caInfo").isNotEmpty())
+            .andExpect(jsonPath("$.body.caInfo.status").value(CaStatus.ACTIVE.toString()));
+    }
+
+    @Test
+    public void test_CA_비활성화() throws Exception {
+        ResponseBodyForUpdateCA responseBodyForUpdateCA = CommonTestUtil.createTestCertificateResult_Update();
+        responseBodyForUpdateCA.getCaInfo().setStatus(CaStatus.DISABLED);
+
+        when(certificateService.disableCa(any())).thenReturn(responseBodyForUpdateCA);
+
+        mockMvc.perform(post("/ca/1/disable")
+                .contentType("application/json"))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.header.isSuccessful").value(true))
+            .andExpect(jsonPath("$.body.caInfo").isNotEmpty())
+            .andExpect(jsonPath("$.body.caInfo.status").value(CaStatus.DISABLED.toString()));
+    }
 }

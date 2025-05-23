@@ -246,4 +246,52 @@ public class CertificateServiceTest {
         assertNotNull(result);
         assertEquals(result.getCaInfo().getStatus(), CaStatus.DELETED);
     }
+
+    @Test
+    public void test_CA_활성화() {
+        CaEntity ca = CommonTestUtil.createTestCaEntity();
+        CertificateEntity certificate = CommonTestUtil.createTestCertificateEntity();
+        ca.setCertificate(certificate);
+        ca.setStatus(CaStatus.DISABLED);
+
+        CaEntity returnCa = CommonTestUtil.createTestCaEntity();
+        CertificateEntity returnCert = CommonTestUtil.createTestCertificateEntity();
+
+        returnCa.setStatus(CaStatus.ACTIVE);
+        returnCert.setStatus(CertificateStatus.ACTIVE);
+
+        returnCa.setCertificate(returnCert);
+
+        when(caRepository.findByIdAndStatus(any(), any())).thenReturn(Optional.of(ca));
+        when(caRepository.save(any())).thenReturn(returnCa);
+
+        ResponseBodyForUpdateCA result = service.removeCert(1L);
+
+        assertNotNull(result);
+        assertEquals(result.getCaInfo().getStatus(), CaStatus.ACTIVE);
+    }
+
+    @Test
+    public void test_CA_비활성화() {
+        CaEntity ca = CommonTestUtil.createTestCaEntity();
+        CertificateEntity certificate = CommonTestUtil.createTestCertificateEntity();
+        ca.setCertificate(certificate);
+        ca.setStatus(CaStatus.ACTIVE);
+
+        CaEntity returnCa = CommonTestUtil.createTestCaEntity();
+        CertificateEntity returnCert = CommonTestUtil.createTestCertificateEntity();
+
+        returnCa.setStatus(CaStatus.DISABLED);
+        returnCert.setStatus(CertificateStatus.DISABLED);
+
+        returnCa.setCertificate(returnCert);
+
+        when(caRepository.findByIdAndStatus(any(), any())).thenReturn(Optional.of(ca));
+        when(caRepository.save(any())).thenReturn(returnCa);
+
+        ResponseBodyForUpdateCA result = service.removeCert(1L);
+
+        assertNotNull(result);
+        assertEquals(result.getCaInfo().getStatus(), CaStatus.DISABLED);
+    }
 }
