@@ -41,6 +41,7 @@ import com.nhncloud.pca.model.request.certificate.RequestBodyForCreateCert;
 import com.nhncloud.pca.model.response.certificate.ResponseBodyForCreateCert;
 import com.nhncloud.pca.model.response.certificate.ResponseBodyForReadCert;
 import com.nhncloud.pca.model.response.certificate.ResponseBodyForReadCertList;
+import com.nhncloud.pca.model.response.certificate.ResponseBodyForUpdateCert;
 import com.nhncloud.pca.model.subject.SubjectInfo;
 import com.nhncloud.pca.repository.CaRepository;
 import com.nhncloud.pca.repository.CertificateRepository;
@@ -212,6 +213,42 @@ public class CertificateServiceImpl implements CertificateService {
         return ResponseBodyForReadCertList.builder()
             .listCerts(certSerialNumberList)
             .build();
+    }
+
+    @Override
+    public ResponseBodyForUpdateCert activateCert(Long caId, Long certId) {
+        log.info("activateCert. caId = {}, certId = {}", caId, certId);
+        CertificateEntity certificateEntity = certificateRepository.findByIdAndStatus(certId, CertificateStatus.DISABLED)
+            .orElseThrow(() -> new RuntimeException("Certificate not found"));
+
+        certificateEntity.setStatus(CertificateStatus.ACTIVE);
+
+        CertificateEntity saveCertificateEntity = certificateRepository.save(certificateEntity);
+
+        CertificateDto certificateDto = certificateMapper.toDto(saveCertificateEntity);
+        CertificateInfo certificateInfo = CertificateInfo.fromCertificateDtoAndCertificate(certificateDto, BouncyCastleUtil.parseCertificate(certificateDto.getCertificatePem()));
+        ResponseBodyForUpdateCert result = ResponseBodyForUpdateCert.builder()
+            .certificateInfo(certificateInfo)
+            .build();
+        return result;
+    }
+
+    @Override
+    public ResponseBodyForUpdateCert disableCert(Long caId, Long certId) {
+        log.info("disableCert. caId = {}, certId = {}", caId, certId);
+        CertificateEntity certificateEntity = certificateRepository.findByIdAndStatus(certId, CertificateStatus.ACTIVE)
+            .orElseThrow(() -> new RuntimeException("Certificate not found"));
+
+        certificateEntity.setStatus(CertificateStatus.DISABLED);
+
+        CertificateEntity saveCertificateEntity = certificateRepository.save(certificateEntity);
+
+        CertificateDto certificateDto = certificateMapper.toDto(saveCertificateEntity);
+        CertificateInfo certificateInfo = CertificateInfo.fromCertificateDtoAndCertificate(certificateDto, BouncyCastleUtil.parseCertificate(certificateDto.getCertificatePem()));
+        ResponseBodyForUpdateCert result = ResponseBodyForUpdateCert.builder()
+            .certificateInfo(certificateInfo)
+            .build();
+        return result;
     }
 
     private KeyPair generateKeyPair(KeyInfo keyInfo) {

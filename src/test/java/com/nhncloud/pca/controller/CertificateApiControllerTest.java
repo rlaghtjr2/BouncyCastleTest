@@ -8,13 +8,17 @@ import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 
 import com.nhncloud.pca.CommonTestUtil;
+import com.nhncloud.pca.constant.ca.CaStatus;
+import com.nhncloud.pca.constant.certificate.CertificateStatus;
 import com.nhncloud.pca.model.certificate.CertificateInfo;
 import com.nhncloud.pca.model.response.certificate.ResponseBodyForReadCert;
+import com.nhncloud.pca.model.response.certificate.ResponseBodyForUpdateCert;
 import com.nhncloud.pca.service.CertificateService;
 
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -50,5 +54,35 @@ public class CertificateApiControllerTest {
             .andExpect(status().isOk())
             .andExpect(jsonPath("$.header.isSuccessful").value(true))
             .andExpect(jsonPath("$.body.commonName").value(CommonTestUtil.TEST_SUBJECT_INFO_COMMON_NAME));
+    }
+
+    @Test
+    public void test_인증서_활성화() throws Exception {
+        ResponseBodyForUpdateCert responseBodyForUpdateCert = CommonTestUtil.createTestCertificateResult_UpdateCert();
+        responseBodyForUpdateCert.getCertificateInfo().setStatus(CertificateStatus.ACTIVE);
+
+        when(certificateService.activateCert(any(), any())).thenReturn(responseBodyForUpdateCert);
+
+        mockMvc.perform(post("/ca/1/cert/1/activate")
+                .contentType("application/json"))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.header.isSuccessful").value(true))
+            .andExpect(jsonPath("$.body.certificateInfo").isNotEmpty())
+            .andExpect(jsonPath("$.body.certificateInfo.status").value(CaStatus.ACTIVE.toString()));
+    }
+
+    @Test
+    public void test_인증서_비활성화() throws Exception {
+        ResponseBodyForUpdateCert responseBodyForUpdateCert = CommonTestUtil.createTestCertificateResult_UpdateCert();
+        responseBodyForUpdateCert.getCertificateInfo().setStatus(CertificateStatus.DISABLED);
+
+        when(certificateService.disableCert(any(), any())).thenReturn(responseBodyForUpdateCert);
+
+        mockMvc.perform(post("/ca/1/cert/1/disable")
+                .contentType("application/json"))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.header.isSuccessful").value(true))
+            .andExpect(jsonPath("$.body.certificateInfo").isNotEmpty())
+            .andExpect(jsonPath("$.body.certificateInfo.status").value(CaStatus.DISABLED.toString()));
     }
 }

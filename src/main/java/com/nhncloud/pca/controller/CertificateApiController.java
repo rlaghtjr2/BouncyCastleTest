@@ -15,6 +15,7 @@ import com.nhncloud.pca.model.request.certificate.RequestBodyForCreateCert;
 import com.nhncloud.pca.model.response.certificate.ResponseBodyForCreateCert;
 import com.nhncloud.pca.model.response.certificate.ResponseBodyForReadCert;
 import com.nhncloud.pca.model.response.certificate.ResponseBodyForReadCertList;
+import com.nhncloud.pca.model.response.certificate.ResponseBodyForUpdateCert;
 import com.nhncloud.pca.service.CertificateService;
 
 @Slf4j
@@ -47,6 +48,18 @@ public class CertificateApiController {
     @GetMapping("/{certId}")
     public ResponseEntity<ApiResponse> getCert(@PathVariable("caId") Long caId, @PathVariable("certId") Long certId) {
         ResponseBodyForReadCert result = certificateService.getCert(caId, certId);
+        return ResponseEntity.ok(ApiResponse.success(result));
+    }
+
+    @PostMapping("/{certId}/activate")
+    public ResponseEntity<ApiResponse> activateCert(@PathVariable("caId") Long caId, @PathVariable("certId") Long certId) {
+        ResponseBodyForUpdateCert result = certificateService.activateCert(caId, certId);
+        return ResponseEntity.ok(ApiResponse.success(result));
+    }
+
+    @PostMapping("/{certId}/disable")
+    public ResponseEntity<ApiResponse> disableCert(@PathVariable("caId") Long caId, @PathVariable("certId") Long certId) {
+        ResponseBodyForUpdateCert result = certificateService.disableCert(caId, certId);
         return ResponseEntity.ok(ApiResponse.success(result));
     }
 }

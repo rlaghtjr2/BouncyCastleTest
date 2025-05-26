@@ -35,6 +35,7 @@ import com.nhncloud.pca.model.request.ca.RequestBodyForUpdateCA;
 import com.nhncloud.pca.model.response.ca.ResponseBodyForCreateCA;
 import com.nhncloud.pca.model.response.ca.ResponseBodyForReadCA;
 import com.nhncloud.pca.model.response.ca.ResponseBodyForUpdateCA;
+import com.nhncloud.pca.model.response.certificate.ResponseBodyForUpdateCert;
 import com.nhncloud.pca.model.subject.SubjectInfo;
 
 public class CommonTestUtil {
@@ -223,6 +224,14 @@ public class CommonTestUtil {
             .build();
 
         return responseBodyForUpdateCA;
+    }
+
+    public static ResponseBodyForUpdateCert createTestCertificateResult_UpdateCert() {
+        ResponseBodyForUpdateCert responseBodyForUpdateCert = ResponseBodyForUpdateCert.builder()
+            .certificateInfo(createTestRootCaCertificateInfo())
+            .build();
+
+        return responseBodyForUpdateCert;
     }
 
     public static X509Certificate generateSelfSignedCertificate() {
