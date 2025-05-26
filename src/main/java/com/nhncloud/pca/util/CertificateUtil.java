@@ -4,28 +4,24 @@ import java.io.IOException;
 import java.io.StringReader;
 import java.io.StringWriter;
 import java.io.UncheckedIOException;
+import java.security.KeyPair;
 import java.security.PrivateKey;
-import java.security.cert.CertificateException;
-import java.security.cert.X509Certificate;
-import java.security.interfaces.RSAPublicKey;
-import java.util.List;
 
 import org.bouncycastle.asn1.pkcs.PrivateKeyInfo;
-import org.bouncycastle.asn1.x500.RDN;
 import org.bouncycastle.asn1.x500.X500Name;
-import org.bouncycastle.asn1.x500.style.BCStyle;
-import org.bouncycastle.cert.CertIOException;
-import org.bouncycastle.cert.X509CertificateHolder;
-import org.bouncycastle.cert.X509v3CertificateBuilder;
-import org.bouncycastle.cert.jcajce.JcaX509CertificateConverter;
+import org.bouncycastle.asn1.x509.SubjectPublicKeyInfo;
 import org.bouncycastle.openssl.PEMKeyPair;
 import org.bouncycastle.openssl.PEMParser;
 import org.bouncycastle.openssl.jcajce.JcaPEMKeyConverter;
 import org.bouncycastle.openssl.jcajce.JcaPEMWriter;
+import org.bouncycastle.operator.ContentSigner;
+import org.bouncycastle.operator.OperatorCreationException;
+import org.bouncycastle.operator.jcajce.JcaContentSignerBuilder;
 import org.bouncycastle.pkcs.PKCS10CertificationRequest;
+import org.bouncycastle.pkcs.PKCS10CertificationRequestBuilder;
 
-import com.nhncloud.pca.model.certificate.CertificateExtension;
-import com.nhncloud.pca.model.key.KeyInfo;
+import com.nhncloud.pca.model.csr.CsrInfo;
+import com.nhncloud.pca.model.request.certificate.RequestBodyForCreateCert;
 import com.nhncloud.pca.model.subject.SubjectInfo;
 
 public class CertificateUtil {
@@ -37,46 +33,6 @@ public class CertificateUtil {
             throw new UncheckedIOException("PEM 변환 실패", e);
         }
         return stringWriter.toString();
-    }
-
-    public static void setCertificateExtensions(X509v3CertificateBuilder certBuilder, List<CertificateExtension> extensions) {
-        for (CertificateExtension extension : extensions) {
-            try {
-                certBuilder.addExtension(extension.getName(), extension.isCritical(), extension.getValue());
-            } catch (CertIOException e) {
-                throw new RuntimeException("setCertificateExtensions() = [CertIOException]");
-            }
-        }
-    }
-
-    public static X509Certificate parseCertificate(String pem) {
-        try (PEMParser parser = new PEMParser(new StringReader(pem))) {
-            Object obj = parser.readObject();
-            if (obj instanceof X509CertificateHolder) {
-                return new JcaX509CertificateConverter()
-                    .setProvider("BC")
-                    .getCertificate((X509CertificateHolder) obj);
-            } else {
-                throw new IllegalArgumentException("Invalid PEM format");
-            }
-        } catch (IOException e) {
-            throw new RuntimeException("new PEMParser() = [IOException]");
-        } catch (CertificateException e) {
-            throw new RuntimeException("new JcaX509CertificateConverter() = [CertificateException]");
-        }
-    }
-
-    public static PKCS10CertificationRequest parseCsr(String pem) {
-        try (PEMParser parser = new PEMParser(new StringReader(pem))) {
-            Object obj = parser.readObject();
-            if (obj instanceof PKCS10CertificationRequest) {
-                return (PKCS10CertificationRequest) obj;
-            } else {
-                throw new IllegalArgumentException("CSR 형식이 아님");
-            }
-        } catch (IOException e) {
-            throw new RuntimeException("new PEMParser() = [IOException]");
-        }
     }
 
     public static PrivateKey parsePrivateKey(String pem) {
@@ -94,29 +50,6 @@ public class CertificateUtil {
         } catch (IOException e) {
             throw new RuntimeException("new PEMParser() = [IOException]");
         }
-    }
-
-    public static SubjectInfo parseDnWithBouncyCastle(String dn) {
-        X500Name x500Name = new X500Name(dn);
-        SubjectInfo info = new SubjectInfo();
-
-        info.setCommonName(getValue(x500Name, BCStyle.CN));
-        info.setCountry(getValue(x500Name, BCStyle.C));
-        info.setStateOrProvince(getValue(x500Name, BCStyle.ST));
-        info.setLocality(getValue(x500Name, BCStyle.L));
-        info.setOrganizationalUnit(getValue(x500Name, BCStyle.OU));
-        info.setOrganization(getValue(x500Name, BCStyle.O));
-        info.setEmailAddress(getValue(x500Name, BCStyle.EmailAddress));
-
-        return info;
-    }
-
-    private static String getValue(X500Name x500Name, org.bouncycastle.asn1.ASN1ObjectIdentifier identifier) {
-        RDN[] rdns = x500Name.getRDNs(identifier);
-        if (rdns != null && rdns.length > 0 && rdns[0].getFirst() != null) {
-            return rdns[0].getFirst().getValue().toString();
-        }
-        return null;
     }
 
     public static String formatSerialNumber(byte[] bytes) {
@@ -137,15 +70,36 @@ public class CertificateUtil {
         return sb.toString();
     }
 
-    public static KeyInfo getKeyInfo(X509Certificate certificate) {
-        String algorithm = certificate.getPublicKey().getAlgorithm();
-        RSAPublicKey rsaKey = (RSAPublicKey) certificate.getPublicKey();
-        int keySize = rsaKey.getModulus().bitLength();
-        KeyInfo keyInfo = KeyInfo.builder()
-            .algorithm(algorithm)
-            .keySize(keySize)
-            .build();
+    public static CsrInfo generateCsr(RequestBodyForCreateCert requestBody, KeyPair keyPair) {
+        SubjectInfo subjectInfo = requestBody.getSubjectInfo();
 
-        return keyInfo;
+        // Subject 이름 설정
+        X500Name subject = new X500Name(subjectInfo.toDistinguishedName());
+
+        // CSR 빌더
+        SubjectPublicKeyInfo subjectPublicKeyInfo = SubjectPublicKeyInfo.getInstance(keyPair.getPublic().getEncoded());
+        PKCS10CertificationRequestBuilder csrBuilder =
+            new PKCS10CertificationRequestBuilder(subject, subjectPublicKeyInfo);
+
+        ContentSigner signer = null;
+        try {
+            signer = new JcaContentSignerBuilder("SHA256withRSA")
+                .setProvider("BC")
+                .build(keyPair.getPrivate());
+        } catch (OperatorCreationException e) {
+            throw new RuntimeException("new JcaContentSignerBuilder() = [OperatorCreationException]");
+        }
+
+        PKCS10CertificationRequest csr = csrBuilder.build(signer);
+
+        // PEM 문자열로 변환
+        String csrPem = CertificateUtil.toPemString(csr);
+        String privateKeyPem = CertificateUtil.toPemString(keyPair.getPrivate());
+
+        CsrInfo csrInfo = CsrInfo.builder()
+            .csrPem(csrPem)
+            .privateKeyPem(privateKeyPem).build();
+
+        return csrInfo;
     }
 }

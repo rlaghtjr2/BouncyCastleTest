@@ -8,6 +8,7 @@ import java.time.LocalDateTime;
 
 import com.nhncloud.pca.constant.certificate.CertificateStatus;
 import com.nhncloud.pca.model.subject.SubjectInfo;
+import com.nhncloud.pca.util.BouncyCastleUtil;
 import com.nhncloud.pca.util.CertificateUtil;
 
 @Data
@@ -36,7 +37,7 @@ public class CertificateInfo {
         return CertificateInfo.builder()
             .certificateId(certificateDto.getId())
             .serialNumber(CertificateUtil.formatSerialNumber(certificate.getSerialNumber().toByteArray()))
-            .subjectInfo(CertificateUtil.parseDnWithBouncyCastle(certificateDto.getSubject()))
+            .subjectInfo(BouncyCastleUtil.parseDnWithBouncyCastle(certificateDto.getSubject()))
             .issuer(certificate.getIssuerX500Principal().getName())
             .publicKeyAlgorithm(certificateDto.getKeyAlgorithm())
             .signatureAlgorithm(certificateDto.getSigningAlgorithm())
