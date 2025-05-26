@@ -115,4 +115,58 @@ public class CertificateServiceTest {
         assertNotNull(result);
         assertEquals(result.getCertificateInfo().getStatus(), CertificateStatus.DISABLED);
     }
+
+    @Test
+    public void test_인증서_삭제예정() {
+        CertificateEntity certificate = CommonTestUtil.createTestCertificateEntity();
+        certificate.setStatus(CertificateStatus.ACTIVE);
+
+        CertificateEntity returnCert = CommonTestUtil.createTestCertificateEntity();
+
+        returnCert.setStatus(CertificateStatus.DELETE_SCHEDULED);
+
+        when(certificateRepository.findById(any())).thenReturn(Optional.of(certificate));
+        when(certificateRepository.save(any())).thenReturn(returnCert);
+
+        ResponseBodyForUpdateCert result = service.setCertDeletion(1L, 1L);
+
+        assertNotNull(result);
+        assertEquals(result.getCertificateInfo().getStatus(), CertificateStatus.DELETE_SCHEDULED);
+    }
+
+    @Test
+    public void test_인증서_삭제예정취소() {
+        CertificateEntity certificate = CommonTestUtil.createTestCertificateEntity();
+        certificate.setStatus(CertificateStatus.DELETE_SCHEDULED);
+
+        CertificateEntity returnCert = CommonTestUtil.createTestCertificateEntity();
+
+        returnCert.setStatus(CertificateStatus.ACTIVE);
+
+        when(certificateRepository.findByIdAndStatus(any(), any())).thenReturn(Optional.of(certificate));
+        when(certificateRepository.save(any())).thenReturn(returnCert);
+
+        ResponseBodyForUpdateCert result = service.unsetCertDeletion(1L, 1L);
+
+        assertNotNull(result);
+        assertEquals(result.getCertificateInfo().getStatus(), CertificateStatus.ACTIVE);
+    }
+
+    @Test
+    public void test_인증서_삭제() {
+        CertificateEntity certificate = CommonTestUtil.createTestCertificateEntity();
+        certificate.setStatus(CertificateStatus.DELETE_SCHEDULED);
+
+        CertificateEntity returnCert = CommonTestUtil.createTestCertificateEntity();
+
+        returnCert.setStatus(CertificateStatus.DELETED);
+
+        when(certificateRepository.findByIdAndStatus(any(), any())).thenReturn(Optional.of(certificate));
+        when(certificateRepository.save(any())).thenReturn(returnCert);
+
+        ResponseBodyForUpdateCert result = service.removeCert(1L, 1L);
+
+        assertNotNull(result);
+        assertEquals(result.getCertificateInfo().getStatus(), CertificateStatus.DELETED);
+    }
 }

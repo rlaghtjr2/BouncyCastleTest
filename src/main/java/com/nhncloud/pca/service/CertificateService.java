@@ -16,4 +16,10 @@ public interface CertificateService {
     ResponseBodyForUpdateCert activateCert(Long caId, Long certId);
 
     ResponseBodyForUpdateCert disableCert(Long caId, Long certId);
+
+    ResponseBodyForUpdateCert setCertDeletion(Long caId, Long certId);
+
+    ResponseBodyForUpdateCert unsetCertDeletion(Long caId, Long certId);
+
+    ResponseBodyForUpdateCert removeCert(Long caId, Long certId);
 }

@@ -251,6 +251,64 @@ public class CertificateServiceImpl implements CertificateService {
         return result;
     }
 
+    @Override
+    public ResponseBodyForUpdateCert setCertDeletion(Long caId, Long certId) {
+        log.info("setCertDeletion. caId = {}, certId = {}", caId, certId);
+        CertificateEntity certificateEntity = certificateRepository.findById(certId)
+            .orElseThrow(() -> new RuntimeException("Certificate not found"));
+
+        if (certificateEntity.getStatus() != CertificateStatus.ACTIVE && certificateEntity.getStatus() != CertificateStatus.DISABLED) {
+            // findBy..에서 처리할 수 도 있지만, 다른 Exception을 줘야히지 않을까?싶어 보류
+            throw new RuntimeException("Certificate is not ACTIVE or DISABLED");
+        }
+        certificateEntity.setStatus(CertificateStatus.DELETE_SCHEDULED);
+        certificateEntity.setDeletionDatetime(LocalDateTime.now().plusWeeks(1));
+        CertificateEntity saveCertificateEntity = certificateRepository.save(certificateEntity);
+
+        CertificateDto certificateDto = certificateMapper.toDto(saveCertificateEntity);
+        CertificateInfo certificateInfo = CertificateInfo.fromCertificateDtoAndCertificate(certificateDto, BouncyCastleUtil.parseCertificate(certificateDto.getCertificatePem()));
+        ResponseBodyForUpdateCert result = ResponseBodyForUpdateCert.builder()
+            .certificateInfo(certificateInfo)
+            .build();
+        return result;
+    }
+
+    @Override
+    public ResponseBodyForUpdateCert unsetCertDeletion(Long caId, Long certId) {
+        log.info("unsetCertDeletion. caId = {}, certId = {}", caId, certId);
+        CertificateEntity certificateEntity = certificateRepository.findByIdAndStatus(certId, CertificateStatus.DELETE_SCHEDULED)
+            .orElseThrow(() -> new RuntimeException("Certificate not found"));
+
+        certificateEntity.setStatus(CertificateStatus.ACTIVE);
+        certificateEntity.setDeletionDatetime(null);
+        CertificateEntity saveCertificateEntity = certificateRepository.save(certificateEntity);
+
+        CertificateDto certificateDto = certificateMapper.toDto(saveCertificateEntity);
+        CertificateInfo certificateInfo = CertificateInfo.fromCertificateDtoAndCertificate(certificateDto, BouncyCastleUtil.parseCertificate(certificateDto.getCertificatePem()));
+        ResponseBodyForUpdateCert result = ResponseBodyForUpdateCert.builder()
+            .certificateInfo(certificateInfo)
+            .build();
+        return result;
+    }
+
+    @Override
+    public ResponseBodyForUpdateCert removeCert(Long caId, Long certId) {
+        log.info("removeCert. caId = {}, certId = {}", caId, certId);
+        CertificateEntity certificateEntity = certificateRepository.findByIdAndStatus(certId, CertificateStatus.DELETE_SCHEDULED)
+            .orElseThrow(() -> new RuntimeException("Certificate not found"));
+
+        certificateEntity.setStatus(CertificateStatus.DELETED);
+        certificateEntity.setDeletionDatetime(LocalDateTime.now());
+        CertificateEntity saveCertificateEntity = certificateRepository.save(certificateEntity);
+
+        CertificateDto certificateDto = certificateMapper.toDto(saveCertificateEntity);
+        CertificateInfo certificateInfo = CertificateInfo.fromCertificateDtoAndCertificate(certificateDto, BouncyCastleUtil.parseCertificate(certificateDto.getCertificatePem()));
+        ResponseBodyForUpdateCert result = ResponseBodyForUpdateCert.builder()
+            .certificateInfo(certificateInfo)
+            .build();
+        return result;
+    }
+
     private KeyPair generateKeyPair(KeyInfo keyInfo) {
         // Algorithm과 provider BC(Bouncy Castle) 지정
         KeyPairGenerator keyGen = null;

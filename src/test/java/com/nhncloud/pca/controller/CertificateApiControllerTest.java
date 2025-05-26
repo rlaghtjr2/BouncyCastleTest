@@ -17,6 +17,7 @@ import com.nhncloud.pca.service.CertificateService;
 
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.when;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
@@ -84,5 +85,50 @@ public class CertificateApiControllerTest {
             .andExpect(jsonPath("$.header.isSuccessful").value(true))
             .andExpect(jsonPath("$.body.certificateInfo").isNotEmpty())
             .andExpect(jsonPath("$.body.certificateInfo.status").value(CaStatus.DISABLED.toString()));
+    }
+
+    @Test
+    public void test_인증서_삭제예정() throws Exception {
+        ResponseBodyForUpdateCert responseBodyForUpdateCert = CommonTestUtil.createTestCertificateResult_UpdateCert();
+        responseBodyForUpdateCert.getCertificateInfo().setStatus(CertificateStatus.DELETE_SCHEDULED);
+
+        when(certificateService.setCertDeletion(any(), any())).thenReturn(responseBodyForUpdateCert);
+
+        mockMvc.perform(post("/ca/1/cert/1/delete")
+                .contentType("application/json"))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.header.isSuccessful").value(true))
+            .andExpect(jsonPath("$.body.certificateInfo").isNotEmpty())
+            .andExpect(jsonPath("$.body.certificateInfo.status").value(CaStatus.DELETE_SCHEDULED.toString()));
+    }
+
+    @Test
+    public void test_인증서_삭제예정_취소() throws Exception {
+        ResponseBodyForUpdateCert responseBodyForUpdateCert = CommonTestUtil.createTestCertificateResult_UpdateCert();
+        responseBodyForUpdateCert.getCertificateInfo().setStatus(CertificateStatus.ACTIVE);
+
+        when(certificateService.unsetCertDeletion(any(), any())).thenReturn(responseBodyForUpdateCert);
+
+        mockMvc.perform(post("/ca/1/cert/1/recover")
+                .contentType("application/json"))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.header.isSuccessful").value(true))
+            .andExpect(jsonPath("$.body.certificateInfo").isNotEmpty())
+            .andExpect(jsonPath("$.body.certificateInfo.status").value(CaStatus.ACTIVE.toString()));
+    }
+
+    @Test
+    public void test_인증서_삭제() throws Exception {
+        ResponseBodyForUpdateCert responseBodyForUpdateCert = CommonTestUtil.createTestCertificateResult_UpdateCert();
+        responseBodyForUpdateCert.getCertificateInfo().setStatus(CertificateStatus.DELETED);
+
+        when(certificateService.removeCert(any(), any())).thenReturn(responseBodyForUpdateCert);
+
+        mockMvc.perform(delete("/ca/1/cert/1")
+                .contentType("application/json"))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.header.isSuccessful").value(true))
+            .andExpect(jsonPath("$.body.certificateInfo").isNotEmpty())
+            .andExpect(jsonPath("$.body.certificateInfo.status").value(CaStatus.DELETED.toString()));
     }
 }

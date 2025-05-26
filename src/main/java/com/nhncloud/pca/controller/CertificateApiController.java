@@ -3,6 +3,7 @@ package com.nhncloud.pca.controller;
 import lombok.extern.slf4j.Slf4j;
 
 import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -60,6 +61,24 @@ public class CertificateApiController {
     @PostMapping("/{certId}/disable")
     public ResponseEntity<ApiResponse> disableCert(@PathVariable("caId") Long caId, @PathVariable("certId") Long certId) {
         ResponseBodyForUpdateCert result = certificateService.disableCert(caId, certId);
+        return ResponseEntity.ok(ApiResponse.success(result));
+    }
+
+    @PostMapping("/{certId}/delete")
+    public ResponseEntity<ApiResponse> setCertDeletion(@PathVariable("caId") Long caId, @PathVariable("certId") Long certId) {
+        ResponseBodyForUpdateCert result = certificateService.setCertDeletion(caId, certId);
+        return ResponseEntity.ok(ApiResponse.success(result));
+    }
+
+    @PostMapping("/{certId}/recover")
+    public ResponseEntity<ApiResponse> unsetCertDeletion(@PathVariable("caId") Long caId, @PathVariable("certId") Long certId) {
+        ResponseBodyForUpdateCert result = certificateService.unsetCertDeletion(caId, certId);
+        return ResponseEntity.ok(ApiResponse.success(result));
+    }
+
+    @DeleteMapping("/{certId}")
+    public ResponseEntity<ApiResponse> removeCert(@PathVariable("caId") Long caId, @PathVariable("certId") Long certId) {
+        ResponseBodyForUpdateCert result = certificateService.removeCert(caId, certId);
         return ResponseEntity.ok(ApiResponse.success(result));
     }
 }
