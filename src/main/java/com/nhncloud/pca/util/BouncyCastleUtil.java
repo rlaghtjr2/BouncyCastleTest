@@ -6,12 +6,15 @@ import java.math.BigInteger;
 import java.security.PrivateKey;
 import java.security.cert.CertificateException;
 import java.security.cert.X509Certificate;
+import java.util.ArrayList;
 import java.util.Date;
 import java.util.List;
 
 import org.bouncycastle.asn1.x500.RDN;
 import org.bouncycastle.asn1.x500.X500Name;
 import org.bouncycastle.asn1.x500.style.BCStyle;
+import org.bouncycastle.asn1.x509.GeneralName;
+import org.bouncycastle.asn1.x509.GeneralNames;
 import org.bouncycastle.asn1.x509.SubjectPublicKeyInfo;
 import org.bouncycastle.cert.CertIOException;
 import org.bouncycastle.cert.X509CertificateHolder;
@@ -125,5 +128,17 @@ public class BouncyCastleUtil {
             throw new RuntimeException("new JcaX509CertificateConverter() = [CertificateException]");
         }
         return certificate;
+    }
+
+    public static GeneralNames createSubjectAltNames(List<String> altNames, List<String> ips) {
+        List<GeneralName> generalNames = new ArrayList<>();
+        altNames.stream().forEach(altName -> {
+            generalNames.add(new GeneralName(GeneralName.dNSName, altName));
+        });
+        ips.stream().forEach(ip -> {
+            generalNames.add(new GeneralName(GeneralName.iPAddress, ip));
+        });
+        
+        return new GeneralNames(generalNames.toArray(new GeneralName[0]));
     }
 }

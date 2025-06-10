@@ -19,6 +19,7 @@ import java.util.stream.Collectors;
 import org.bouncycastle.asn1.x500.X500Name;
 import org.bouncycastle.asn1.x509.BasicConstraints;
 import org.bouncycastle.asn1.x509.Extension;
+import org.bouncycastle.asn1.x509.GeneralNames;
 import org.bouncycastle.asn1.x509.KeyUsage;
 import org.bouncycastle.cert.X509v3CertificateBuilder;
 import org.bouncycastle.cert.jcajce.JcaX509ExtensionUtils;
@@ -143,6 +144,16 @@ public class CaServiceImpl implements CaService {
                 false,
                 new JcaX509ExtensionUtils().createSubjectKeyIdentifier(csr.getSubjectPublicKeyInfo())
             ));
+
+            //san (Subject Alternative Name) 추가
+            GeneralNames san = BouncyCastleUtil.createSubjectAltNames(requestBody.getAltName(), requestBody.getIp());
+            if (san.getNames().length != 0) {
+                extensions.add(new CertificateExtension(
+                    Extension.subjectAlternativeName,
+                    false,
+                    san
+                ));
+            }
             // Intermediate일 경우 Authority Key Identifier 추가
             if (caType.equals(CaType.INTERMEDIATE.getType())) {
                 extensions.add(new CertificateExtension(

@@ -6,6 +6,7 @@ import lombok.Data;
 @Data
 @Builder
 public class ResponseBodyForCreateCert {
+    private Long certId;
     private String certificatePem;
     private String chainCertificatePem;
     private String privateKeyPem;

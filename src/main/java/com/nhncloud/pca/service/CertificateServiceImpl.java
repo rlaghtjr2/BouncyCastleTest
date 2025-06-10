@@ -18,6 +18,7 @@ import org.bouncycastle.asn1.x500.X500Name;
 import org.bouncycastle.asn1.x509.BasicConstraints;
 import org.bouncycastle.asn1.x509.ExtendedKeyUsage;
 import org.bouncycastle.asn1.x509.Extension;
+import org.bouncycastle.asn1.x509.GeneralNames;
 import org.bouncycastle.asn1.x509.KeyPurposeId;
 import org.bouncycastle.asn1.x509.KeyUsage;
 import org.bouncycastle.cert.X509v3CertificateBuilder;
@@ -129,6 +130,15 @@ public class CertificateServiceImpl implements CertificateService {
             extensions.add(new CertificateExtension(Extension.authorityKeyIdentifier, false,
                 new JcaX509ExtensionUtils().createAuthorityKeyIdentifier(upperCertificate.getPublicKey())
             ));
+            //san (Subject Alternative Name) 추가
+            GeneralNames san = BouncyCastleUtil.createSubjectAltNames(requestBody.getAltName(), requestBody.getIp());
+            if (san.getNames().length != 0) {
+                extensions.add(new CertificateExtension(
+                    Extension.subjectAlternativeName,
+                    false,
+                    san
+                ));
+            }
             BouncyCastleUtil.setCertificateExtensions(certBuilder, extensions);
         } catch (NoSuchAlgorithmException e) {
             throw new RuntimeException("Failed to add extensions", e);
@@ -157,11 +167,12 @@ public class CertificateServiceImpl implements CertificateService {
         certificateDto.setX509Certificate(certificate);
         CertificateEntity certificateEntity = certificateMapper.toEntity(certificateDto);
 
-        certificateRepository.save(certificateEntity);
+        CertificateEntity saveEntity = certificateRepository.save(certificateEntity);
 
 
         // 9. Return 객체 생성
         ResponseBodyForCreateCert result = ResponseBodyForCreateCert.builder()
+            .certId(saveEntity.getId())
             .serialNo(CertificateUtil.formatSerialNumber(certificate.getSerialNumber().toByteArray()))
             .certificatePem(certificatePem)
             .privateKeyPem(privateKeyPem)
