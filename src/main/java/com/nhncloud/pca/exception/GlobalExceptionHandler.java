@@ -14,11 +14,12 @@ import com.nhncloud.pca.model.acme.Problem;
 
 @ControllerAdvice
 public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
+    private final HttpHeaders headers = new HttpHeaders() {{
+        setContentType(MediaType.APPLICATION_PROBLEM_JSON);
+    }};
 
     @ExceptionHandler(MethodNotAllowedException.class)
     public HttpEntity<Problem> handleMethodNotAllowedException(MethodNotAllowedException ex) {
-        HttpHeaders headers = new HttpHeaders();
-        headers.setContentType(MediaType.APPLICATION_PROBLEM_JSON);
         return ResponseEntity.status(ex.getStatusCode())
                 .headers(headers)
                 .body(new Problem(ProblemType.MALFORMED));
