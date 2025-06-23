@@ -3,20 +3,29 @@ package com.nhncloud.pca.util;
 import java.io.IOException;
 import java.io.StringReader;
 import java.math.BigInteger;
+import java.security.KeyPair;
+import java.security.KeyPairGenerator;
 import java.security.PrivateKey;
 import java.security.cert.CertificateException;
 import java.security.cert.X509Certificate;
+import java.util.ArrayList;
 import java.util.Date;
 import java.util.List;
 
+import org.bouncycastle.asn1.DERIA5String;
 import org.bouncycastle.asn1.x500.RDN;
 import org.bouncycastle.asn1.x500.X500Name;
 import org.bouncycastle.asn1.x500.style.BCStyle;
+import org.bouncycastle.asn1.x509.Extension;
+import org.bouncycastle.asn1.x509.Extensions;
+import org.bouncycastle.asn1.x509.GeneralName;
+import org.bouncycastle.asn1.x509.GeneralNames;
 import org.bouncycastle.asn1.x509.SubjectPublicKeyInfo;
 import org.bouncycastle.cert.CertIOException;
 import org.bouncycastle.cert.X509CertificateHolder;
 import org.bouncycastle.cert.X509v3CertificateBuilder;
 import org.bouncycastle.cert.jcajce.JcaX509CertificateConverter;
+import org.bouncycastle.jce.provider.BouncyCastleProvider;
 import org.bouncycastle.openssl.PEMParser;
 import org.bouncycastle.operator.ContentSigner;
 import org.bouncycastle.operator.OperatorCreationException;
@@ -125,5 +134,56 @@ public class BouncyCastleUtil {
             throw new RuntimeException("new JcaX509CertificateConverter() = [CertificateException]");
         }
         return certificate;
+    }
+
+    public static GeneralNames createSubjectAltNames(List<String> altNames, List<String> ips) {
+        List<GeneralName> generalNames = new ArrayList<>();
+        altNames.stream().forEach(altName -> {
+            generalNames.add(new GeneralName(GeneralName.dNSName, altName));
+        });
+        ips.stream().forEach(ip -> {
+            generalNames.add(new GeneralName(GeneralName.iPAddress, ip));
+        });
+
+        return new GeneralNames(generalNames.toArray(new GeneralName[0]));
+    }
+
+    public static String extractCommonName(PKCS10CertificationRequest csr) throws Exception {
+        Extensions extensions = csr.getRequestedExtensions();
+        GeneralNames gns = GeneralNames.fromExtensions(extensions, Extension.subjectAlternativeName);
+        for (GeneralName gn : gns.getNames()) {
+            if (gn.getTagNo() == GeneralName.dNSName) {
+                String domain = DERIA5String.getInstance(gn.getName()).getString();
+                System.out.println("Domain: " + domain);
+                return domain;
+            }
+        }
+        throw new IllegalArgumentException("No DNS name found in CSR");
+    }
+
+    public static X509Certificate generateSelfSignedCert(PKCS10CertificationRequest csr) throws Exception {
+        KeyPairGenerator keyGen = KeyPairGenerator.getInstance("RSA");
+        keyGen.initialize(2048);
+        KeyPair caKeyPair = keyGen.generateKeyPair();
+
+        // 인증서 발급 기본 정보 설정
+        long now = System.currentTimeMillis();
+        Date notBefore = new Date(now);
+        Date notAfter = new Date(now + 30L * 24 * 60 * 60 * 1000); // 30일
+
+        BigInteger serial = BigInteger.valueOf(now);
+
+        X509v3CertificateBuilder certBuilder = new X509v3CertificateBuilder(
+            csr.getSubject(), serial, notBefore, notAfter,
+            csr.getSubject(), csr.getSubjectPublicKeyInfo()
+        );
+
+        JcaContentSignerBuilder signerBuilder = new JcaContentSignerBuilder("SHA256withRSA");
+        ContentSigner signer = signerBuilder.build(caKeyPair.getPrivate());
+
+        X509CertificateHolder holder = certBuilder.build(signer);
+        return new JcaX509CertificateConverter()
+            .setProvider(new BouncyCastleProvider())
+            .getCertificate(holder);
     }
 }
