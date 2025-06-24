@@ -13,6 +13,8 @@ import com.nimbusds.jose.util.Base64URL;
 
 public class JwsUtils {
 
+    private static final ObjectMapper mapper = new ObjectMapper();
+
     public static class JwsParseResult {
         public final Map<String, Object> protectedHeader;
         public final Map<String, Object> payload;
@@ -27,8 +29,6 @@ public class JwsUtils {
 
     public static JwsParseResult parseAndVerifyJws(Map<String, String> jwsRequest, AccountStore accountStore)
         throws Exception {
-
-        ObjectMapper mapper = new ObjectMapper();
 
         String protectedB64 = jwsRequest.get("protected");
         String payloadB64 = jwsRequest.get("payload");

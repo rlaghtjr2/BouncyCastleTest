@@ -13,8 +13,9 @@ spring:
     database-platform: org.hibernate.dialect.MySQLDialect
 
 server:
-  port: 8443
+  port: 8080
   ssl:
+    port: 8443
     enabled: true
     key-store: classpath:cert2/keystore.p12
     key-store-password: test1234
