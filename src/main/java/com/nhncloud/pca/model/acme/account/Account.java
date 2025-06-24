@@ -1,4 +1,4 @@
-package com.nhncloud.pca.model.acme;
+package com.nhncloud.pca.model.acme.account;
 
 import lombok.Builder;
 import lombok.Data;

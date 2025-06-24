@@ -1,4 +1,4 @@
-package com.nhncloud.pca.model.acme;
+package com.nhncloud.pca.model.acme.authorization;
 
 import lombok.Builder;
 import lombok.Data;
@@ -8,6 +8,8 @@ import java.util.ArrayList;
 import java.util.List;
 
 import com.nhncloud.pca.constant.acme.AuthorizationStatus;
+import com.nhncloud.pca.model.acme.Identifier;
+import com.nhncloud.pca.model.acme.challenge.Challenge;
 
 @Data
 @Builder

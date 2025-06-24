@@ -8,9 +8,9 @@ import java.util.concurrent.ConcurrentHashMap;
 import org.springframework.stereotype.Component;
 
 import com.nhncloud.pca.constant.acme.AuthorizationStatus;
-import com.nhncloud.pca.model.acme.Authorization;
-import com.nhncloud.pca.model.acme.Challenge;
 import com.nhncloud.pca.model.acme.Identifier;
+import com.nhncloud.pca.model.acme.authorization.Authorization;
+import com.nhncloud.pca.model.acme.challenge.Challenge;
 
 @Component
 public class AuthorizationStore {

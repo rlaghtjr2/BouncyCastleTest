@@ -10,9 +10,9 @@ import org.springframework.stereotype.Component;
 
 import com.nhncloud.pca.constant.acme.AuthorizationStatus;
 import com.nhncloud.pca.constant.acme.OrderStatus;
-import com.nhncloud.pca.model.acme.Authorization;
 import com.nhncloud.pca.model.acme.Identifier;
-import com.nhncloud.pca.model.acme.Order;
+import com.nhncloud.pca.model.acme.authorization.Authorization;
+import com.nhncloud.pca.model.acme.order.Order;
 
 @Component
 public class OrderStore {

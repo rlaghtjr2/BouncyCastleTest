@@ -1,4 +1,4 @@
-package com.nhncloud.pca.model.acme;
+package com.nhncloud.pca.model.acme.order;
 
 import lombok.Builder;
 import lombok.Data;
@@ -10,6 +10,8 @@ import java.util.List;
 import org.bouncycastle.pkcs.PKCS10CertificationRequest;
 
 import com.nhncloud.pca.constant.acme.OrderStatus;
+import com.nhncloud.pca.model.acme.Identifier;
+import com.nhncloud.pca.model.acme.authorization.Authorization;
 
 @Data
 @Builder
