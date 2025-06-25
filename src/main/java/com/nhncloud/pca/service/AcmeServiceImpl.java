@@ -16,12 +16,15 @@ import java.util.stream.Collectors;
 
 import org.bouncycastle.openssl.jcajce.JcaPEMWriter;
 import org.bouncycastle.pkcs.PKCS10CertificationRequest;
+import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.nhncloud.pca.constant.acme.AuthorizationStatus;
 import com.nhncloud.pca.constant.acme.OrderStatus;
+import com.nhncloud.pca.constant.acme.ProblemType;
+import com.nhncloud.pca.exception.AcmeProblemException;
 import com.nhncloud.pca.model.acme.CertificateResult;
 import com.nhncloud.pca.model.acme.Directory;
 import com.nhncloud.pca.model.acme.FinalizeResult;
@@ -75,83 +78,76 @@ public class AcmeServiceImpl implements AcmeService {
 
     @Override
     public AccountCreationResult createAccount(Map<String, String> request, HttpServletRequest httpRequest) {
-        try {
-            // 1. JWS 파싱 및 서명 검증
-            JwsUtils.JwsParseResult result = JwsUtils.parseAndVerifyJws(request, accountStore);
-            String nonce = result.protectedHeader.get("nonce").toString();
-            if (!nonceStore.consumeNonce(nonce)) {
-                throw new RuntimeException("The request did not include a valid nonce.");
-            }
-
-            Map<String, Object> payloadMap = result.payload;
-            RSAKey jwk = result.accountKey;
-
-            // 2. 새로운 계정 ID 및 URL 생성
-            String accountId = UUID.randomUUID().toString();
-            String baseUrl = httpRequest.getScheme() + "://" + httpRequest.getServerName() + ":" + httpRequest.getServerPort();
-            String accountUrl = baseUrl + "/acme/acct/" + accountId;
-
-            // 3. 계정 키 저장
-            accountStore.saveAccount(accountUrl, jwk);
-
-            // 4. 응답 객체 생성
-            String replayNonce = nonceStore.generateNonce();
-            List<String> contact = (List<String>) payloadMap.getOrDefault("contact", List.of());
-
-            return AccountCreationResult.builder()
-                .accountUrl(accountUrl)
-                .contact(contact)
-                .replayNonce(replayNonce)
-                .build();
-        } catch (SecurityException e) {
-            throw new SecurityException("Signature verification failed");
-        } catch (Exception e) {
-            throw new RuntimeException(e);
+        // 1. JWS 파싱 및 서명 검증
+        JwsUtils.JwsParseResult result = JwsUtils.parseAndVerifyJws(request, accountStore);
+        String nonce = result.protectedHeader.get("nonce").toString();
+        if (!nonceStore.consumeNonce(nonce)) {
+            throw new AcmeProblemException(ProblemType.BAD_NONCE, "The request did not include a valid nonce.",
+                HttpStatus.BAD_REQUEST, nonceStore.generateNonce());
         }
+
+        Map<String, Object> payloadMap = result.payload;
+        RSAKey jwk = result.accountKey;
+
+        // 2. 새로운 계정 ID 및 URL 생성
+        String accountId = UUID.randomUUID().toString();
+        String baseUrl = httpRequest.getScheme() + "://" + httpRequest.getServerName() + ":" + httpRequest.getServerPort();
+        String accountUrl = baseUrl + "/acme/acct/" + accountId;
+
+        // 3. 계정 키 저장
+        accountStore.saveAccount(accountUrl, jwk);
+
+        // 4. 응답 객체 생성
+        String replayNonce = nonceStore.generateNonce();
+        List<String> contact = (List<String>) payloadMap.getOrDefault("contact", List.of());
+
+        return AccountCreationResult.builder()
+            .accountUrl(accountUrl)
+            .contact(contact)
+            .replayNonce(replayNonce)
+            .build();
+
     }
 
     @Override
     public OrderCreationResult createOrder(Map<String, String> request, String baseUrl) {
-        try {
-            // JWS 검증
-            JwsUtils.JwsParseResult result = JwsUtils.parseAndVerifyJws(request, accountStore);
 
-            // Nonce 확인
-            String nonce = result.protectedHeader.get("nonce").toString();
-            if (!nonceStore.consumeNonce(nonce)) {
-                throw new RuntimeException("Invalid nonce");
-            }
+        // JWS 검증
+        JwsUtils.JwsParseResult result = JwsUtils.parseAndVerifyJws(request, accountStore);
 
-            // identifiers 파싱
-            Map<String, Object> payloadMap = result.payload;
-            List<Identifier> identifiers = new ObjectMapper().convertValue(
-                payloadMap.get("identifiers"), new TypeReference<List<Identifier>>() {
-                }
-            );
-            // Authz + Challenge 생성
-            List<Authorization> authzs = new ArrayList<>();
-            for (Identifier identifier : identifiers) {
-                Challenge challenge = challengeStore.createChallenge(baseUrl);
-                Authorization authz = authorizationStore.createAuthorization(identifier, List.of(challenge));
-                authzs.add(authz);
-            }
-
-            // Order 생성
-            Order order = orderStore.createOrder(identifiers, authzs, baseUrl);
-            String replayNonce = nonceStore.generateNonce();
-
-            return OrderCreationResult.builder()
-                .order(order)
-                .authzs(authzs)
-                .replayNonce(replayNonce)
-                .originalNonce(nonce)
-                .build();
-
-        } catch (SecurityException e) {
-            throw new SecurityException("Signature verification failed");
-        } catch (Exception e) {
-            throw new RuntimeException(e);
+        // Nonce 확인
+        String nonce = result.protectedHeader.get("nonce").toString();
+        if (!nonceStore.consumeNonce(nonce)) {
+            throw new AcmeProblemException(ProblemType.BAD_NONCE, "The request did not include a valid nonce.",
+                HttpStatus.BAD_REQUEST, nonceStore.generateNonce());
         }
+
+        // identifiers 파싱
+        Map<String, Object> payloadMap = result.payload;
+        List<Identifier> identifiers = new ObjectMapper().convertValue(
+            payloadMap.get("identifiers"), new TypeReference<List<Identifier>>() {
+            }
+        );
+        // Authz + Challenge 생성
+        List<Authorization> authzs = new ArrayList<>();
+        for (Identifier identifier : identifiers) {
+            Challenge challenge = challengeStore.createChallenge(baseUrl);
+            Authorization authz = authorizationStore.createAuthorization(identifier, List.of(challenge));
+            authzs.add(authz);
+        }
+
+        // Order 생성
+        Order order = orderStore.createOrder(identifiers, authzs, baseUrl);
+        String replayNonce = nonceStore.generateNonce();
+
+        return OrderCreationResult.builder()
+            .order(order)
+            .authzs(authzs)
+            .replayNonce(replayNonce)
+            .originalNonce(nonce)
+            .build();
+
+
     }
 
     @Override
@@ -159,7 +155,8 @@ public class AcmeServiceImpl implements AcmeService {
         Authorization authz = authorizationStore.getAuthorization(id);
 
         if (authz == null) {
-            throw new RuntimeException("Authorization not found");
+            throw new AcmeProblemException(ProblemType.MALFORMED, "Authorization resource with ID '" + id + "' was not found",
+                HttpStatus.NOT_FOUND, nonceStore.generateNonce());
         }
 
         // 챌린지 리스트
@@ -202,12 +199,14 @@ public class AcmeServiceImpl implements AcmeService {
         String nonce = result.protectedHeader.get("nonce").toString();
 
         if (!nonceStore.consumeNonce(nonce)) {
-            throw new RuntimeException("Invalid nonce");
+            throw new AcmeProblemException(ProblemType.BAD_NONCE, "The request did not include a valid nonce.",
+                HttpStatus.BAD_REQUEST, nonceStore.generateNonce());
         }
 
         Challenge challenge = challengeStore.getChallenge(id);
         if (challenge == null) {
-            throw new RuntimeException("Challenge not found");
+            throw new AcmeProblemException(ProblemType.MALFORMED, "Challenge resource with ID '" + id + "' was not found",
+                HttpStatus.NOT_FOUND, nonceStore.generateNonce());
         }
 
         // Challenge 및 Authorization 상태 갱신
@@ -233,47 +232,61 @@ public class AcmeServiceImpl implements AcmeService {
     @Override
     public FinalizeResult finalizeOrder(String orderId, Map<String, String> jwsRequest) {
         // 1. JWS 파싱 및 검증
+        JwsUtils.JwsParseResult result = JwsUtils.parseAndVerifyJws(jwsRequest, accountStore);
+
+        Map<String, Object> payloadMap = result.payload;
+
+        // 2. CSR 디코딩
+        String csrBase64Url = (String) payloadMap.get("csr");
+        byte[] csrBytes = Base64.getUrlDecoder().decode(csrBase64Url);
+        PKCS10CertificationRequest csr = null;
         try {
-            JwsUtils.JwsParseResult result = JwsUtils.parseAndVerifyJws(jwsRequest, accountStore);
-
-            Map<String, Object> payloadMap = result.payload;
-
-            // 2. CSR 디코딩
-            String csrBase64Url = (String) payloadMap.get("csr");
-            byte[] csrBytes = Base64.getUrlDecoder().decode(csrBase64Url);
-            PKCS10CertificationRequest csr = new PKCS10CertificationRequest(csrBytes);
-
-            // 3. 도메인 추출
-            String domain = BouncyCastleUtil.extractCommonName(csr);
-
-            // 4. 도메인 인증 여부 확인
-            if (!orderStore.isDomainAuthorized(orderId, domain)) {
-                throw new RuntimeException("Domain not authorized");
-            }
-
-            // 5. 인증서 생성 및 저장
-            X509Certificate certificate = BouncyCastleUtil.generateSelfSignedCert(csr);
-            String certId = UUID.randomUUID().toString();
-            certStore.save(certId, certificate);
-
-            // 6. order finalize
-            String pemCert = CertificateUtil.toPemString(certificate);
-            orderStore.finalizeOrder(orderId, certId, csr, pemCert);
-
-            return FinalizeResult.builder()
-                .status("valid")
-                .replayNonce(nonceStore.generateNonce())
-                .build();
-        } catch (Exception e) {
-            throw new RuntimeException("Failed to finalize order", e);
+            csr = new PKCS10CertificationRequest(csrBytes);
+        } catch (IOException e) {
+            throw new RuntimeException("csr decoding failed", e);
         }
+
+        // 3. 도메인 추출
+        String domain = null;
+        try {
+            domain = BouncyCastleUtil.extractCommonName(csr);
+        } catch (Exception e) {
+            throw new RuntimeException("domain extraction failed", e);
+        }
+
+        // 4. 도메인 인증 여부 확인
+        if (!orderStore.isDomainAuthorized(orderId, domain)) {
+            throw new AcmeProblemException(ProblemType.MALFORMED, "domain '" + domain + "' is not authorized for order '" + orderId + "'",
+                HttpStatus.NOT_FOUND, nonceStore.generateNonce());
+        }
+
+        // 5. 인증서 생성 및 저장
+        X509Certificate certificate = null;
+        try {
+            certificate = BouncyCastleUtil.generateSelfSignedCert(csr);
+        } catch (Exception e) {
+            throw new RuntimeException("certificate generation failed", e);
+        }
+        String certId = UUID.randomUUID().toString();
+        certStore.save(certId, certificate);
+
+        // 6. order finalize
+        String pemCert = CertificateUtil.toPemString(certificate);
+        orderStore.finalizeOrder(orderId, certId, csr, pemCert);
+
+        return FinalizeResult.builder()
+            .status("valid")
+            .replayNonce(nonceStore.generateNonce())
+            .build();
+
     }
 
     @Override
     public OrderQueryResult getOrder(String orderId, String baseUrl) {
         Order order = orderStore.getOrder(orderId);
         if (order == null) {
-            throw new RuntimeException("Order not found");
+            throw new AcmeProblemException(ProblemType.MALFORMED, "Order resource with ID '" + orderId + "' was not found",
+                HttpStatus.NOT_FOUND, nonceStore.generateNonce());
         }
 
         // Authorization 상태 확인 → Order 상태 갱신
@@ -304,7 +317,8 @@ public class AcmeServiceImpl implements AcmeService {
         // 아직 DB 연동이 안되서, 그냥 새로 발급된 인증서 2개 붙이는 형식으로 진행
         X509Certificate certificate = certStore.get(certificateId);
         if (certificate == null) {
-            throw new RuntimeException("Certificate not found");
+            throw new AcmeProblemException(ProblemType.MALFORMED, "Certificate resource with ID '" + certificateId + "' was not found",
+                HttpStatus.NOT_FOUND, nonceStore.generateNonce());
         }
 
         StringWriter writer = new StringWriter();

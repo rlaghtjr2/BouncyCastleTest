@@ -33,6 +33,8 @@ import com.nhncloud.pca.constant.acme.AuthorizationStatus;
 import com.nhncloud.pca.constant.acme.ChallengeStatus;
 import com.nhncloud.pca.constant.acme.ChallengeType;
 import com.nhncloud.pca.constant.acme.OrderStatus;
+import com.nhncloud.pca.constant.acme.ProblemType;
+import com.nhncloud.pca.exception.AcmeProblemException;
 import com.nhncloud.pca.model.acme.CertificateResult;
 import com.nhncloud.pca.model.acme.Directory;
 import com.nhncloud.pca.model.acme.FinalizeResult;
@@ -181,6 +183,54 @@ public class AcmeServiceTest {
     }
 
     @Test
+    public void testCreateAccount_invalidNonce() {
+        // 1. Dummy JWS 요청
+        Map<String, String> jwsRequest = Map.of(
+            "protected", "fakeProtected",
+            "payload", "fakePayload",
+            "signature", "fakeSignature"
+        );
+
+        // 2. Mock HttpServletRequest
+        MockHttpServletRequest mockRequest = new MockHttpServletRequest();
+        mockRequest.setScheme("https");
+        mockRequest.setServerName("localhost");
+        mockRequest.setServerPort(8443);
+
+        // 3. NonceStore mock: consume 실패 시뮬레이션
+        when(nonceStore.consumeNonce("mocked-nonce")).thenReturn(false);
+
+        // 4. JwsParseResult 구성
+        Map<String, Object> protectedHeader = Map.of("nonce", "mocked-nonce");
+        Map<String, Object> payload = Map.of(
+            "contact", List.of("mailto:hosoek.kim@nhn.com"),
+            "termsOfServiceAgreed", true
+        );
+        RSAKey accountKey = new RSAKey.Builder(
+            new Base64URL("somerandomModulusBase64url"),
+            new Base64URL("AQAB")
+        ).keyID("mock-key-id").build();
+
+        JwsUtils.JwsParseResult mockResult = new JwsUtils.JwsParseResult(protectedHeader, payload, accountKey);
+
+        // 5. Static mock 설정
+        try (MockedStatic<JwsUtils> mockedStatic = mockStatic(JwsUtils.class)) {
+            mockedStatic.when(() -> JwsUtils.parseAndVerifyJws(jwsRequest, accountStore))
+                .thenReturn(mockResult);
+
+            // 6. 예외 발생 및 메시지 검증
+            AcmeProblemException ex = assertThrows(
+                AcmeProblemException.class,
+                () -> service.createAccount(jwsRequest, mockRequest)
+            );
+
+            assertEquals("The request did not include a valid nonce.", ex.getDetail());
+            assertEquals(ProblemType.BAD_NONCE, ex.getProblemType());
+        }
+    }
+
+
+    @Test
     public void testCreateOrder() {
         // ----- JWS 요청 시뮬레이션 -----
         Map<String, String> jwsRequest = Map.of(
@@ -307,12 +357,12 @@ public class AcmeServiceTest {
         when(authorizationStore.getAuthorization("not-exist")).thenReturn(null);
 
         // when & then
-        RuntimeException ex = assertThrows(
-            RuntimeException.class,
+        AcmeProblemException ex = assertThrows(
+            AcmeProblemException.class,
             () -> service.getAuthorization("not-exist", "https://localhost:8443")
         );
-
-        assertEquals("Authorization not found", ex.getMessage());
+        assertEquals(ProblemType.MALFORMED, ex.getProblemType());
+        assertEquals("Authorization resource with ID 'not-exist' was not found", ex.getDetail());
     }
 
     @Test
@@ -393,11 +443,12 @@ public class AcmeServiceTest {
                 .thenReturn(result);
 
             // WHEN / THEN
-            RuntimeException ex = assertThrows(
-                RuntimeException.class,
+            AcmeProblemException ex = assertThrows(
+                AcmeProblemException.class,
                 () -> service.triggerChallenge(challengeId, jwsRequest, "https://localhost:8443")
             );
-            assertEquals("Invalid nonce", ex.getMessage());
+            assertEquals("The request did not include a valid nonce.", ex.getDetail());
+            assertEquals(ProblemType.BAD_NONCE, ex.getProblemType());
         }
     }
 
@@ -424,11 +475,12 @@ public class AcmeServiceTest {
                 .thenReturn(result);
 
             // WHEN / THEN
-            RuntimeException e = assertThrows(
-                RuntimeException.class,
+            AcmeProblemException ex = assertThrows(
+                AcmeProblemException.class,
                 () -> service.triggerChallenge(challengeId, jwsRequest, "https://localhost:8443")
             );
-            assertEquals("Challenge not found", e.getMessage());
+            assertEquals(ProblemType.MALFORMED, ex.getProblemType());
+            assertEquals("Challenge resource with ID 'unknown' was not found", ex.getDetail());
         }
     }
 
@@ -498,8 +550,6 @@ public class AcmeServiceTest {
         RSAKey mockKey = new RSAKey.Builder(new Base64URL("n"), new Base64URL("AQAB")).build();
         JwsUtils.JwsParseResult parseResult = new JwsUtils.JwsParseResult(protectedHeader, payload, mockKey);
 
-//        when(orderStore.isDomainAuthorized(orderId, "test.local")).thenReturn(false);
-
         try (
             MockedStatic<JwsUtils> jwsMock = mockStatic(JwsUtils.class);
             MockedStatic<BouncyCastleUtil> bcMock = mockStatic(BouncyCastleUtil.class)
@@ -511,9 +561,13 @@ public class AcmeServiceTest {
                 .thenReturn("test.local");
 
             // WHEN / THEN
-            assertThrows(RuntimeException.class, () -> {
-                service.finalizeOrder(orderId, jwsRequest);
-            });
+            // WHEN / THEN
+            AcmeProblemException ex = assertThrows(
+                AcmeProblemException.class,
+                () -> service.finalizeOrder(orderId, jwsRequest)
+            );
+            assertEquals(ProblemType.MALFORMED, ex.getProblemType());
+            assertEquals("domain 'test.local' is not authorized for order 'order-unauth'", ex.getDetail());
         }
     }
 
@@ -564,9 +618,13 @@ public class AcmeServiceTest {
         when(orderStore.getOrder(orderId)).thenReturn(null);
 
         // WHEN / THEN
-        assertThrows(RuntimeException.class, () -> {
-            service.getOrder(orderId, baseUrl);
-        });
+        // WHEN / THEN
+        AcmeProblemException ex = assertThrows(
+            AcmeProblemException.class,
+            () -> service.getOrder(orderId, baseUrl)
+        );
+        assertEquals(ProblemType.MALFORMED, ex.getProblemType());
+        assertEquals("Order resource with ID 'invalid-order' was not found", ex.getDetail());
     }
 
     @Test
@@ -596,25 +654,12 @@ public class AcmeServiceTest {
         when(certStore.get(certId)).thenReturn(null);
 
         // WHEN / THEN
-        assertThrows(RuntimeException.class, () -> {
-            service.getCertificate(certId);
-        });
-    }
-
-    @Test
-    void getCertificate_encodingFailure() throws Exception {
-        // GIVEN
-        String certId = "cert-err";
-        X509Certificate mockCert = generateTestCert();
-
-        when(certStore.get(certId)).thenReturn(mockCert);
-        when(nonceStore.generateNonce()).thenReturn("nonce-xyz");
-
-        // 💡 JcaPEMWriter 내부에서 IOException 발생을 유도하려면, JcaPEMWriter를 감싸는 Writer를 조작해야 함
-        // 이 테스트는 실제로는 어려우므로, try-with-resources 블록을 테스트하려면 리팩터링 필요
-        // 현재 구조에선 IOException 발생시키기 어려움
-
-        // 테스트 생략 또는 추후 구조 리팩토링 시 적용 가능
+        AcmeProblemException ex = assertThrows(
+            AcmeProblemException.class,
+            () -> service.getCertificate(certId)
+        );
+        assertEquals(ProblemType.MALFORMED, ex.getProblemType());
+        assertEquals("Certificate resource with ID 'missing-cert' was not found", ex.getDetail());
     }
 
     private X509Certificate generateTestCert() throws Exception {

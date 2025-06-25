@@ -1,15 +1,16 @@
 package com.nhncloud.pca.model.acme;
 
+import lombok.Getter;
+
 import java.util.List;
 
 import com.nhncloud.pca.constant.acme.ProblemType;
-
-import lombok.Getter;
 
 @Getter
 public class Problem {
     private String type;
     private String detail;
+    private Integer status;
     private List<Subproblems> subproblems;
 
     public class Subproblems {
@@ -18,8 +19,9 @@ public class Problem {
         private Identifier identifier;
     }
 
-    public Problem(ProblemType problemType) {
+    public Problem(ProblemType problemType, String detail, Integer status) {
         this.type = problemType.getType();
-        this.detail = problemType.getDescription();
+        this.detail = detail;
+        this.status = status;
     }
 }
