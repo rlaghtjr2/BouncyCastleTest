@@ -49,6 +49,8 @@ dependencies {
     // bouncycastle
     implementation("org.bouncycastle:bcprov-jdk18on:1.78")
     implementation("org.bouncycastle:bcpkix-jdk18on:1.78")
+    // nimbus-jose-jwt for JWS/JWT handling
+    implementation 'com.nimbusds:nimbus-jose-jwt:9.37.3'
     // SpringDoc OpenAPI Starter WebMVC UI (/swagger-ui/index.html)
     implementation("org.springdoc:springdoc-openapi-starter-webmvc-ui:2.8.6")
     // MapStruct

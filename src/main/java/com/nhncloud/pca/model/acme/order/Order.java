@@ -29,8 +29,12 @@ public class Order {
     private LocalDateTime notBefore;
     private LocalDateTime notAfter;
     public PKCS10CertificationRequest csr;
-    // url 형태
+
+    // 이 밑은 모두 url 형태
+    // 주문 완료 시 사용
     private String finalize;
+    // 주문 실패 시 사용
     private String error;
+    // 인증서 정보
     private String certificate;
 }

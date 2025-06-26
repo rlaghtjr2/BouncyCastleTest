@@ -12,5 +12,4 @@ public class CertificateExtension {
     private ASN1ObjectIdentifier name;
     private boolean isCritical;
     private ASN1Encodable value;
-
 }
