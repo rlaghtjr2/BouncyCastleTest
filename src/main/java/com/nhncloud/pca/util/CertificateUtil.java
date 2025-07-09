@@ -98,7 +98,7 @@ public class CertificateUtil {
 
         CsrInfo csrInfo = CsrInfo.builder()
             .csrPem(csrPem)
-            .privateKeyPem(privateKeyPem).build();
+            .privateKey(privateKeyPem).build();
 
         return csrInfo;
     }

@@ -8,7 +8,7 @@ import lombok.Data;
 public class ResponseBodyForCreateCert {
     private String certificatePem;
     private String chainCertificatePem;
-    private String privateKeyPem;
+    private String privateKey;
     private String serialNo;
     private String ocspResponder;
     private String issuer;

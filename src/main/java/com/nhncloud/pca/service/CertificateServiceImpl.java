@@ -92,7 +92,7 @@ public class CertificateServiceImpl implements CertificateService {
             throw new RuntimeException("Upper CA is not ACTIVE");
         }
 
-        PrivateKey upperPrivateKey = CertificateUtil.parsePrivateKey(upperCertDto.getPrivateKeyPem());
+        PrivateKey upperPrivateKey = CertificateUtil.parsePrivateKey(upperCertDto.getPrivateKey());
         X509Certificate upperCertificate = BouncyCastleUtil.parseCertificate(upperCertDto.getCertificatePem());
 
         PrivateKey signingKey = upperPrivateKey;
@@ -148,7 +148,7 @@ public class CertificateServiceImpl implements CertificateService {
             .keyAlgorithm(requestBody.getKeyInfo().getAlgorithm())
             .signingAlgorithm("SHA256withRSA")
             .certificatePem(certificatePem)
-            .privateKeyPem(privateKeyPem)
+            .privateKey(privateKeyPem)
             .status(CertificateStatus.ACTIVE)
             .signedCertificateId(upperCertEntity.getSignedCertificateId())
             .creationUser("HOSEOK")
@@ -164,7 +164,7 @@ public class CertificateServiceImpl implements CertificateService {
         ResponseBodyForCreateCert result = ResponseBodyForCreateCert.builder()
             .serialNo(CertificateUtil.formatSerialNumber(certificate.getSerialNumber().toByteArray()))
             .certificatePem(certificatePem)
-            .privateKeyPem(privateKeyPem)
+            .privateKey(privateKeyPem)
             .issuer(upperCertDto.getCertificatePem())
             .build();
 

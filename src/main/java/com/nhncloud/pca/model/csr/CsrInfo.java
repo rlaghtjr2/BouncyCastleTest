@@ -7,5 +7,5 @@ import lombok.Data;
 @Builder
 public class CsrInfo {
     private String csrPem;
-    private String privateKeyPem;
+    private String privateKey;
 }

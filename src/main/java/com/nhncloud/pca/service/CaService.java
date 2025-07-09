@@ -8,7 +8,7 @@ import com.nhncloud.pca.model.response.ca.ResponseBodyForReadChainCA;
 import com.nhncloud.pca.model.response.ca.ResponseBodyForUpdateCA;
 
 public interface CaService {
-    ResponseBodyForCreateCA generateCa(RequestBodyForCreateCA requestBody, String caType, Long caId) throws Exception;
+    ResponseBodyForCreateCA generateCa(RequestBodyForCreateCA requestBody, Long caId) throws Exception;
 
     ResponseBodyForReadCAList getCaList(int page);
 

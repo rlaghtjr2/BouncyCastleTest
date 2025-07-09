@@ -46,7 +46,7 @@ public class CertificateEntity {
     String certificatePem;
 
     @Column
-    String privateKeyPem;
+    String privateKey;
 
     @Column
     String notBefore;

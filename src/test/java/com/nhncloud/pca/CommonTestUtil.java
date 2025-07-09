@@ -123,7 +123,7 @@ public class CommonTestUtil {
             .notAfterDateTime(TEST_CERTIFICATE_INFO_NOT_AFTER)
             .certificatePem(ROOT_CA_CERT_PEM)
             .chainCertificatePem(TEST_CERTIFICATE_INFO_CHAIN_CERTIFICATE_PEM)
-            .privateKeyPem(ROOT_CA_KEY_PEM)
+            .privateKey(ROOT_CA_KEY_PEM)
             .publicKeyAlgorithm(TEST_CERTIFICATE_INFO_PUBLIC_KEY_ALGORITHM)
             .signatureAlgorithm(TEST_CERTIFICATE_INFO_SIGNATURE_ALGORITHM)
             .status(CertificateStatus.ACTIVE)
@@ -209,7 +209,7 @@ public class CommonTestUtil {
         certificateEntity.setNotAfter(TEST_CERTIFICATE_INFO_NOT_AFTER.toString());
         certificateEntity.setCertificatePem(TEST_CERTIFICATE_INFO_CERTIFICATE_PEM);
         certificateEntity.setCertificatePem(ROOT_CA_CERT_PEM);
-        certificateEntity.setPrivateKeyPem(ROOT_CA_KEY_PEM);
+        certificateEntity.setPrivateKey(ROOT_CA_KEY_PEM);
         certificateEntity.setSignedCertificateId("1,2,3,4");
         certificateEntity.setStatus(CertificateStatus.ACTIVE);
         certificateEntity.setCreationUser("HOSEOK");

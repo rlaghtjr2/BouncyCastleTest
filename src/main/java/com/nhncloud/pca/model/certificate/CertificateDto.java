@@ -20,7 +20,7 @@ public class CertificateDto {
     private String keyAlgorithm;
     private String signingAlgorithm;
     private String certificatePem;
-    private String privateKeyPem;
+    private String privateKey;
     private LocalDateTime notBefore;
     private LocalDateTime notAfter;
     private String signedCertificateId;

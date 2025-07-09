@@ -11,6 +11,7 @@ import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
+import java.util.Optional;
 import java.util.stream.Collectors;
 
 import org.bouncycastle.asn1.x500.X500Name;
@@ -27,7 +28,6 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import com.nhncloud.pca.constant.ca.CaStatus;
-import com.nhncloud.pca.constant.ca.CaType;
 import com.nhncloud.pca.constant.certificate.CertificateStatus;
 import com.nhncloud.pca.entity.CaEntity;
 import com.nhncloud.pca.entity.CertificateEntity;
@@ -80,8 +80,8 @@ public class CaServiceImpl implements CaService {
 
     @Override
     @Transactional
-    public ResponseBodyForCreateCA generateCa(RequestBodyForCreateCA requestBody, String caType, Long caId) {
-        log.info("generateCa() = {}, caType = {}", requestBody, caType);
+    public ResponseBodyForCreateCA generateCa(RequestBodyForCreateCA requestBody, Long caId) {
+        log.info("generateCa() = {}", requestBody);
 
         //1. 인증서 생성에 사용할 Key 만들기
         KeyPair keyPair = generateKeyPair(requestBody.getKeyInfo());
@@ -95,7 +95,7 @@ public class CaServiceImpl implements CaService {
         PrivateKey signingKey = keyPair.getPrivate();
 
         X509Certificate upperCertificate = null;
-        if (caType.equals(CaType.INTERMEDIATE.getType())) {
+        if (caId != null) {
             //3. Intermediate경우 signingKey와 Issuer가 달라짐
             CertificateEntity upperCaCert = certificateRepository.findByCa_Id(caId).orElseThrow(() -> new RuntimeException("CA not found"));
 
@@ -105,12 +105,12 @@ public class CaServiceImpl implements CaService {
                 throw new RuntimeException("Upper CA is not ACTIVE");
             }
 
-            String upperPrivateKeyPem = upperCaCert.getPrivateKeyPem();
+            String upperPrivateKey = upperCaCert.getPrivateKey();
             String upperCertificatePem = upperCaCert.getCertificatePem();
-            PrivateKey upperPrivateKey = CertificateUtil.parsePrivateKey(upperPrivateKeyPem);
+            PrivateKey upperPrivateKeyObj = CertificateUtil.parsePrivateKey(upperPrivateKey);
             upperCertificate = BouncyCastleUtil.parseCertificate(upperCertificatePem);
 
-            signingKey = upperPrivateKey;
+            signingKey = upperPrivateKeyObj;
             issuerName = new X500Name(upperCaCert.getSubject());
         }
 
@@ -143,7 +143,7 @@ public class CaServiceImpl implements CaService {
                 new JcaX509ExtensionUtils().createSubjectKeyIdentifier(csr.getSubjectPublicKeyInfo())
             ));
             // Intermediate일 경우 Authority Key Identifier 추가
-            if (caType.equals(CaType.INTERMEDIATE.getType())) {
+            if (caId != null) {
                 extensions.add(new CertificateExtension(
                     Extension.authorityKeyIdentifier,
                     false,
@@ -176,6 +176,9 @@ public class CaServiceImpl implements CaService {
         CaEntity caEntity = caMapper.toEntity(caDto);
         caEntity = caRepository.save(caEntity);
 
+        // 8-2 signedCa를 저장
+        CaEntity upperCaEntity = caId != null ? caRepository.findById(caId).orElse(caEntity) : caEntity;
+
         // 8-2 인증서 저장
         // 만들어진 인증서 정보 Certificate Dto -> Entity
         CertificateDto certificateDto = CertificateDto.builder()
@@ -183,25 +186,35 @@ public class CaServiceImpl implements CaService {
             .csr(csrPem)
             .status(CertificateStatus.ACTIVE)
             .certificatePem(certificatePem)
-            .privateKeyPem(privateKeyPem)
+            .privateKey(privateKeyPem)
             .creationUser("HOSEOK")
             .creationDatetime(LocalDateTime.now())
             .build();
         certificateDto.setX509Certificate(certificate);
         CertificateEntity certificateEntity = certificateMapper.toEntity(certificateDto);
 
-        // 인증서 Entity에 정보 세팅
-        String caEntityId = caEntity.getId().toString();
-        certificateEntity.setSignedCertificateId(caEntityId);
+        // NotNull 제약조건을 위해 임시값 설정하고 저장
+        certificateEntity.setSignedCertificateId("TEMP");
+        CertificateEntity savedCertificate = certificateRepository.save(certificateEntity);
 
-        certificateRepository.save(certificateEntity);
+        // 저장된 Certificate ID를 얻음
+        String savedCertificateId = savedCertificate.getId().toString();
+
+        // 올바른 signedCertificateId 설정
+        String signedCertificateId = Optional.ofNullable(upperCaEntity.getCertificate())
+            .map(cert -> cert.getSignedCertificateId() + "," + savedCertificateId)
+            .orElse(savedCertificateId);
+
+        // 올바른 signedCertificateId로 업데이트
+        savedCertificate.setSignedCertificateId(signedCertificateId);
+        certificateRepository.save(savedCertificate);
 
         // 9. Return type 정의
         // 9-1 Ca 정보
         CaInfo caInfo = CaInfo.fromCaDto(caMapper.toDto(caEntity));
 
         // 9-2 인증서 정보
-        CertificateInfo caCertificateInfo = CertificateInfo.fromCertificateDtoAndCertificate(certificateMapper.toDto(certificateEntity), certificate);
+        CertificateInfo caCertificateInfo = CertificateInfo.fromCertificateDtoAndCertificate(certificateMapper.toDto(savedCertificate), certificate);
         caCertificateInfo.setSerialNumber(CertificateUtil.formatSerialNumber(certificate.getSerialNumber().toByteArray()));
         caCertificateInfo.setIssuer(issuerName.toString());
 

@@ -71,7 +71,7 @@ public class CaServiceTest {
         caEntity.setId(1L);
         when(caRepository.save(any())).thenReturn(caEntity);
 
-        ResponseBodyForCreateCA result = service.generateCa(CommonTestUtil.createTestCertificateRequestBody(), "ROOT", null);
+        ResponseBodyForCreateCA result = service.generateCa(CommonTestUtil.createTestCertificateRequestBody(),  null);
 
         System.out.println(result);
         assertNotNull(result);
@@ -83,7 +83,7 @@ public class CaServiceTest {
         requestBody.getKeyInfo().setAlgorithm("INVALID_ALGORITHM");
         Exception exception = assertThrows(RuntimeException.class, () -> {
             // 예외를 발생시킬 코드
-            service.generateCa(requestBody, "ROOT", null);
+            service.generateCa(requestBody,  null);
         });
 
         assertEquals("Wrong Algorithm", exception.getMessage());
@@ -102,7 +102,7 @@ public class CaServiceTest {
 
         when(caRepository.save(any())).thenReturn(ca);
         when(certificateRepository.findByCa_Id(any())).thenReturn(Optional.of(certificate));
-        ResponseBodyForCreateCA result = service.generateCa(CommonTestUtil.createTestCertificateRequestBody(), "INTERMEDIATE", 1L);
+        ResponseBodyForCreateCA result = service.generateCa(CommonTestUtil.createTestCertificateRequestBody(),  1L);
 
         System.out.println(result);
         assertNotNull(result);
