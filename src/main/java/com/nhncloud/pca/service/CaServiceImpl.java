@@ -80,7 +80,7 @@ public class CaServiceImpl implements CaService {
 
     @Override
     @Transactional
-    public ResponseBodyForCreateCA generateCa(RequestBodyForCreateCA requestBody, Long caId) {
+    public ResponseBodyForCreateCA generateCa(RequestBodyForCreateCA requestBody, Long certificateId) {
         log.info("generateCa() = {}", requestBody);
 
         //1. 인증서 생성에 사용할 Key 만들기
@@ -95,9 +95,9 @@ public class CaServiceImpl implements CaService {
         PrivateKey signingKey = keyPair.getPrivate();
 
         X509Certificate upperCertificate = null;
-        if (caId != null) {
+        if (certificateId != null) {
             //3. Intermediate경우 signingKey와 Issuer가 달라짐
-            CertificateEntity upperCaCert = certificateRepository.findByCa_Id(caId).orElseThrow(() -> new RuntimeException("CA not found"));
+            CertificateEntity upperCaCert = certificateRepository.findById(certificateId).orElseThrow(() -> new RuntimeException("Certificate not found"));
 
             CaDto upperCaDto = caMapper.toDto(upperCaCert.getCa());
             if (upperCaDto.getStatus() != CaStatus.ACTIVE) {
@@ -143,7 +143,7 @@ public class CaServiceImpl implements CaService {
                 new JcaX509ExtensionUtils().createSubjectKeyIdentifier(csr.getSubjectPublicKeyInfo())
             ));
             // Intermediate일 경우 Authority Key Identifier 추가
-            if (caId != null) {
+            if (certificateId != null) {
                 extensions.add(new CertificateExtension(
                     Extension.authorityKeyIdentifier,
                     false,
@@ -177,7 +177,7 @@ public class CaServiceImpl implements CaService {
         caEntity = caRepository.save(caEntity);
 
         // 8-2 signedCa를 저장
-        CaEntity upperCaEntity = caId != null ? caRepository.findById(caId).orElse(caEntity) : caEntity;
+        CaEntity upperCaEntity = certificateId != null ? certificateRepository.findById(certificateId).get().getCa() : caEntity;
 
         // 8-2 인증서 저장
         // 만들어진 인증서 정보 Certificate Dto -> Entity

@@ -33,10 +33,10 @@ public class CaApiController {
     }
 
     @PostMapping
-    public ResponseEntity<ApiResponse> createCa(@RequestBody RequestBodyForCreateCA requestBody, @Nullable @RequestParam("caId") Long caId) {
+    public ResponseEntity<ApiResponse> createCa(@RequestBody RequestBodyForCreateCA requestBody, @Nullable @RequestParam("certificateId") Long certificateId) {
         ResponseBodyForCreateCA result;
         try {
-            result = caService.generateCa(requestBody, caId);
+            result = caService.generateCa(requestBody, certificateId);
         } catch (Exception e) {
             return ResponseEntity.ok(ApiResponse.fail(50000, e.getMessage()));
         }
