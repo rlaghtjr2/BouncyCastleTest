@@ -1,7 +1,5 @@
 package com.nhncloud.pca.service;
 
-import lombok.extern.slf4j.Slf4j;
-
 import java.security.KeyPair;
 import java.security.KeyPairGenerator;
 import java.security.NoSuchAlgorithmException;
@@ -54,6 +52,8 @@ import com.nhncloud.pca.repository.CaRepository;
 import com.nhncloud.pca.repository.CertificateRepository;
 import com.nhncloud.pca.util.BouncyCastleUtil;
 import com.nhncloud.pca.util.CertificateUtil;
+
+import lombok.extern.slf4j.Slf4j;
 
 @Service
 @Slf4j
@@ -200,10 +200,10 @@ public class CaServiceImpl implements CaService {
 
         // 인증서 Entity에 정보 세팅
         String caEntityId = caEntity.getId().toString();
-        String signedCaId = Optional.ofNullable(upperCaEntity.getCertificate())
-            .map(cert -> cert.getSignedCaId() + "," + caEntityId)
+        String signedCertificateId = Optional.ofNullable(upperCaEntity.getCertificate())
+            .map(cert -> cert.getSignedCertificateId() + "," + caEntityId)
             .orElse(caEntityId);
-        certificateEntity.setSignedCaId(signedCaId);
+        certificateEntity.setSignedCertificateId(signedCertificateId);
 
         certificateRepository.save(certificateEntity);
 
@@ -289,9 +289,9 @@ public class CaServiceImpl implements CaService {
     public ResponseBodyForReadChainCA getCAChain(Long caId) {
         log.info("getCAChain() = {}", caId);
         CertificateEntity certificateEntity = certificateRepository.findByCa_Id(caId).orElseThrow(() -> new RuntimeException("CA not found"));
-        List<Long> signedCaList = Arrays.stream(certificateEntity.getSignedCaId()
+        List<Long> signedCaCertificateList = Arrays.stream(certificateEntity.getSignedCertificateId()
             .split(",")).map(Long::parseLong).toList();
-        List<String> chainPems = buildCaChain(signedCaList);
+        List<String> chainPems = buildCaChain(signedCaCertificateList);
 
         return ResponseBodyForReadChainCA.builder()
             .data(chainPems.stream()
@@ -426,11 +426,11 @@ public class CaServiceImpl implements CaService {
         return keyGen.generateKeyPair();
     }
 
-    private List<String> buildCaChain(List<Long> signedCaList) {
+    private List<String> buildCaChain(List<Long> signedCaCertificateList) {
         List<String> chain = new ArrayList<>();
 
-        signedCaList.forEach(id -> {
-            CertificateEntity certificate = certificateRepository.findByCa_Id(id).orElseThrow(() -> new RuntimeException("ChainCertificate not found"));
+        signedCaCertificateList.forEach(id -> {
+            CertificateEntity certificate = certificateRepository.findById(id).orElseThrow(() -> new RuntimeException("ChainCertificate not found"));
             chain.add(certificate.getCertificatePem());
         });
         return chain;

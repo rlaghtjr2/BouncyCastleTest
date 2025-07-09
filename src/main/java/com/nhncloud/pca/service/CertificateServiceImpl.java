@@ -1,7 +1,5 @@
 package com.nhncloud.pca.service;
 
-import lombok.extern.slf4j.Slf4j;
-
 import java.security.KeyPair;
 import java.security.KeyPairGenerator;
 import java.security.NoSuchAlgorithmException;
@@ -47,6 +45,8 @@ import com.nhncloud.pca.repository.CaRepository;
 import com.nhncloud.pca.repository.CertificateRepository;
 import com.nhncloud.pca.util.BouncyCastleUtil;
 import com.nhncloud.pca.util.CertificateUtil;
+
+import lombok.extern.slf4j.Slf4j;
 
 @Service
 @Slf4j
@@ -150,7 +150,7 @@ public class CertificateServiceImpl implements CertificateService {
             .certificatePem(certificatePem)
             .privateKeyPem(privateKeyPem)
             .status(CertificateStatus.ACTIVE)
-            .signedCaId(upperCertEntity.getSignedCaId())
+            .signedCertificateId(upperCertEntity.getSignedCertificateId())
             .creationUser("HOSEOK")
             .creationDatetime(LocalDateTime.now())
             .build();
@@ -174,7 +174,7 @@ public class CertificateServiceImpl implements CertificateService {
     @Override
     public ResponseBodyForReadCert getCert(Long caId, Long certId) {
         log.info("getCert() = {}, {}", caId, certId);
-        CertificateEntity certificateEntity = certificateRepository.findByIdAndSignedCaIdAndStatusNot(certId, String.valueOf(caId), CertificateStatus.DELETED)
+        CertificateEntity certificateEntity = certificateRepository.findByIdAndStatusNot(certId, CertificateStatus.DELETED)
             .orElseThrow(() -> new RuntimeException("Certificate not found"));
         CertificateDto certificateDto = certificateMapper.toDto(certificateEntity);
 
@@ -199,7 +199,7 @@ public class CertificateServiceImpl implements CertificateService {
     @Override
     public ResponseBodyForReadCertList getCertList(Long caId) {
         log.info("getCertList() = {}", caId);
-        List<CertificateEntity> certificateEntities = certificateRepository.findBySignedCaIdAndCaIsNullAndStatusNot(String.valueOf(caId), CertificateStatus.DELETED).orElseThrow(() -> new RuntimeException("CA not found"));
+        List<CertificateEntity> certificateEntities = certificateRepository.findBySignedCertificateIdAndCaIsNullAndStatusNot(String.valueOf(caId), CertificateStatus.DELETED).orElseThrow(() -> new RuntimeException("CA not found"));
 
         List<String> certSerialNumberList = certificateEntities.stream()
             .map(certificateEntity -> {

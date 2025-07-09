@@ -1,5 +1,9 @@
 package com.nhncloud.pca.entity;
 
+import java.time.LocalDateTime;
+
+import com.nhncloud.pca.constant.certificate.CertificateStatus;
+
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.EnumType;
@@ -13,14 +17,10 @@ import jakarta.persistence.Table;
 import lombok.Getter;
 import lombok.Setter;
 
-import java.time.LocalDateTime;
-
-import com.nhncloud.pca.constant.certificate.CertificateStatus;
-
 @Entity
 @Getter
 @Setter
-@Table(name = "PCA_CERTIFICATE")
+@Table(name = "CERTIFICATE")
 public class CertificateEntity {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -55,14 +55,14 @@ public class CertificateEntity {
     String notAfter;
 
     @Column
-    String signedCaId;
+    String signedCertificateId;
 
     @Enumerated(EnumType.STRING)
     CertificateStatus status;
 
     @Column
     LocalDateTime deletionDatetime;
-    
+
     @Column
     String creationUser;
 

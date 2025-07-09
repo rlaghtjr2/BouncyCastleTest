@@ -1,14 +1,14 @@
 package com.nhncloud.pca.model.certificate;
 
-import lombok.Builder;
-import lombok.Data;
-
 import java.security.cert.X509Certificate;
 import java.time.LocalDateTime;
 import java.time.ZoneId;
 
 import com.nhncloud.pca.constant.certificate.CertificateStatus;
 import com.nhncloud.pca.model.ca.CaDto;
+
+import lombok.Builder;
+import lombok.Data;
 
 @Data
 @Builder
@@ -23,7 +23,7 @@ public class CertificateDto {
     private String privateKeyPem;
     private LocalDateTime notBefore;
     private LocalDateTime notAfter;
-    private String signedCaId;
+    private String signedCertificateId;
     private CertificateStatus status;
     private LocalDateTime deletionDatetime;
     private String creationUser;

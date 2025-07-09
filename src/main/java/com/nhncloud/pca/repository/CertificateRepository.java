@@ -11,9 +11,9 @@ import com.nhncloud.pca.entity.CertificateEntity;
 public interface CertificateRepository extends JpaRepository<CertificateEntity, Long> {
     Optional<CertificateEntity> findByCa_Id(Long caId);
 
-    Optional<CertificateEntity> findByIdAndSignedCaIdAndStatusNot(Long certificateId, String caId, CertificateStatus status);
+    Optional<CertificateEntity> findByIdAndStatusNot(Long certificateId, CertificateStatus status);
 
-    Optional<List<CertificateEntity>> findBySignedCaIdAndCaIsNullAndStatusNot(String signedCaCaId, CertificateStatus status);
+    Optional<List<CertificateEntity>> findBySignedCertificateIdAndCaIsNullAndStatusNot(String signedCaCaId, CertificateStatus status);
 
     Optional<CertificateEntity> findByIdAndStatus(Long certificateId, CertificateStatus status);
 }

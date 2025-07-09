@@ -211,7 +211,7 @@ public class CommonTestUtil {
         certificateEntity.setCertificatePem(TEST_CERTIFICATE_INFO_CERTIFICATE_PEM);
         certificateEntity.setCertificatePem(ROOT_CA_CERT_PEM);
         certificateEntity.setPrivateKeyPem(ROOT_CA_KEY_PEM);
-        certificateEntity.setSignedCaId("1,2,3,4");
+        certificateEntity.setSignedCertificateId("1,2,3,4");
         certificateEntity.setStatus(CertificateStatus.ACTIVE);
         certificateEntity.setCreationUser("HOSEOK");
         certificateEntity.setCreationDatetime(LocalDateTime.now());

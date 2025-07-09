@@ -1,5 +1,10 @@
 package com.nhncloud.pca.service;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.when;
+
 import java.util.Optional;
 
 import org.junit.jupiter.api.BeforeEach;
@@ -23,11 +28,6 @@ import com.nhncloud.pca.model.response.certificate.ResponseBodyForReadCert;
 import com.nhncloud.pca.model.response.certificate.ResponseBodyForUpdateCert;
 import com.nhncloud.pca.repository.CaRepository;
 import com.nhncloud.pca.repository.CertificateRepository;
-
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertNotNull;
-import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
 public class CertificateServiceTest {
@@ -72,7 +72,7 @@ public class CertificateServiceTest {
     @Test
     public void test_인증서_조회() {
         CertificateEntity cert = CommonTestUtil.createTestCertificateEntity();
-        when(certificateRepository.findByIdAndSignedCaIdAndStatusNot(any(), any(), any())).thenReturn(Optional.of(cert));
+        when(certificateRepository.findByIdAndStatusNot(any(), any())).thenReturn(Optional.of(cert));
 
         ResponseBodyForReadCert result = service.getCert(1L, 1L);
         assertNotNull(result);
