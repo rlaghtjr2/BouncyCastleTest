@@ -18,11 +18,11 @@ public interface AcmeAccountRepository extends JpaRepository<AcmeAccountEntity, 
 
     List<AcmeAccountEntity> findByStatus(AccountStatus status);
 
-    // JSON 필드 내부 값으로 검색 (MySQL의 경우)
-    @Query("SELECT a FROM AcmeAccountEntity a WHERE JSON_EXTRACT(a.contact, '$[*]') LIKE %:email%")
+    // JSON 필드 내부 값으로 검색 (MySQL의 경우) - Native Query 사용
+    @Query(value = "SELECT * FROM PCA_ACME_ACCOUNT WHERE JSON_CONTAINS(contact, JSON_QUOTE(?1))", nativeQuery = true)
     List<AcmeAccountEntity> findByContactEmail(@Param("email") String email);
 
-    // 특정 연락처 타입으로 검색
-    @Query("SELECT a FROM AcmeAccountEntity a WHERE JSON_EXTRACT(a.contact, '$[*]') LIKE %:contactType%")
+    // 특정 연락처 타입으로 검색 - Native Query 사용
+    @Query(value = "SELECT * FROM PCA_ACME_ACCOUNT WHERE JSON_SEARCH(contact, 'one', ?1) IS NOT NULL", nativeQuery = true)
     List<AcmeAccountEntity> findByContactType(@Param("contactType") String contactType);
 }

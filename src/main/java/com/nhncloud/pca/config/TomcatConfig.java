@@ -4,9 +4,8 @@ import org.apache.catalina.connector.Connector;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.web.embedded.tomcat.TomcatServletWebServerFactory;
 import org.springframework.context.annotation.Bean;
-import org.springframework.stereotype.Component;
 
-@Component
+// @Component  // Spring Boot 자동 SSL 설정을 사용하기 위해 비활성화
 public class TomcatConfig {
     @Value("${server.port}")
     private int httpPort;
