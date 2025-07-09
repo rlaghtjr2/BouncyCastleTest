@@ -1,23 +1,23 @@
 package com.nhncloud.pca.model.ca;
 
+import com.nhncloud.pca.constant.ca.CaStatus;
+
 import lombok.Builder;
 import lombok.Data;
-
-import com.nhncloud.pca.constant.ca.CaStatus;
 
 @Data
 @Builder
 public class CaInfo {
     private String name;
     private Long id;
-    private String type;
+    private Long toastProjectId;
     private CaStatus status;
 
     public static CaInfo fromCaDto(CaDto caDto) {
         return CaInfo.builder()
             .id(caDto.getId())
             .name(caDto.getName())
-            .type(caDto.getType())
+            .toastProjectId(caDto.getToastProjectId())
             .status(caDto.getStatus())
             .build();
     }

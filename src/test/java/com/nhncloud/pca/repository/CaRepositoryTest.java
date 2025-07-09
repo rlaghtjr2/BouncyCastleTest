@@ -1,16 +1,15 @@
 package com.nhncloud.pca.repository;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.jdbc.AutoConfigureTestDatabase;
 import org.springframework.boot.test.autoconfigure.orm.jpa.DataJpaTest;
 
 import com.nhncloud.pca.CommonTestUtil;
-import com.nhncloud.pca.constant.ca.CaType;
 import com.nhncloud.pca.entity.CaEntity;
-
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertNotNull;
 
 @DataJpaTest
 @AutoConfigureTestDatabase(replace = AutoConfigureTestDatabase.Replace.NONE)
@@ -46,6 +45,5 @@ public class CaRepositoryTest {
         assertNotNull(savedCa);
         assertNotNull(savedCa.getId());
         assertEquals("Test CA", savedCa.getName());
-        assertEquals(CaType.ROOT.getType(), savedCa.getType());
     }
 }

@@ -11,7 +11,6 @@ import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
-import java.util.Optional;
 import java.util.stream.Collectors;
 
 import org.bouncycastle.asn1.x500.X500Name;
@@ -169,20 +168,13 @@ public class CaServiceImpl implements CaService {
         // 8-1 CA 저장
         CaDto caDto = CaDto.builder()
             .name(requestBody.getName())
-            .type(caType)
+            .toastProjectId(1L) // TODO: 실제 프로젝트 ID로 변경 필요
             .status(CaStatus.ACTIVE)
             .creationUser("HOSEOK")
             .creationDatetime(LocalDateTime.now())
             .build();
         CaEntity caEntity = caMapper.toEntity(caDto);
         caEntity = caRepository.save(caEntity);
-
-        // 8-2 signedCa를 저장
-        CaEntity upperCaEntity = Optional.ofNullable(caId)
-            .map(caRepository::getReferenceById)
-            .orElse(caEntity);
-        caEntity.setSignedCa(upperCaEntity);
-        caRepository.save(caEntity);
 
         // 8-2 인증서 저장
         // 만들어진 인증서 정보 Certificate Dto -> Entity
@@ -200,10 +192,7 @@ public class CaServiceImpl implements CaService {
 
         // 인증서 Entity에 정보 세팅
         String caEntityId = caEntity.getId().toString();
-        String signedCertificateId = Optional.ofNullable(upperCaEntity.getCertificate())
-            .map(cert -> cert.getSignedCertificateId() + "," + caEntityId)
-            .orElse(caEntityId);
-        certificateEntity.setSignedCertificateId(signedCertificateId);
+        certificateEntity.setSignedCertificateId(caEntityId);
 
         certificateRepository.save(certificateEntity);
 

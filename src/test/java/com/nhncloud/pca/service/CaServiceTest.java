@@ -1,5 +1,11 @@
 package com.nhncloud.pca.service;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.when;
+
 import java.time.LocalDateTime;
 import java.util.Collections;
 import java.util.List;
@@ -18,7 +24,6 @@ import org.springframework.data.domain.Pageable;
 
 import com.nhncloud.pca.CommonTestUtil;
 import com.nhncloud.pca.constant.ca.CaStatus;
-import com.nhncloud.pca.constant.ca.CaType;
 import com.nhncloud.pca.constant.certificate.CertificateStatus;
 import com.nhncloud.pca.entity.CaEntity;
 import com.nhncloud.pca.entity.CertificateEntity;
@@ -35,12 +40,6 @@ import com.nhncloud.pca.model.response.ca.ResponseBodyForReadChainCA;
 import com.nhncloud.pca.model.response.ca.ResponseBodyForUpdateCA;
 import com.nhncloud.pca.repository.CaRepository;
 import com.nhncloud.pca.repository.CertificateRepository;
-
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertNotNull;
-import static org.junit.jupiter.api.Assertions.assertThrows;
-import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
 public class CaServiceTest {
@@ -119,7 +118,7 @@ public class CaServiceTest {
         ResponseBodyForReadCA result = service.getCA(1L);
         assertNotNull(result);
         assertEquals(result.getCaInfo().getName(), CommonTestUtil.TEST_CA_INFO_NAME);
-        assertEquals(result.getCaInfo().getType(), CaType.ROOT.getType());
+        assertEquals(result.getCaInfo().getToastProjectId(), CommonTestUtil.TEST_CA_INFO_TOAST_PROJECT_ID);
         assertEquals(result.getCaInfo().getId(), CommonTestUtil.TEST_CA_INFO_ID);
     }
 
@@ -133,7 +132,7 @@ public class CaServiceTest {
         rootCert.setCa(rootCa);
 
         when(certificateRepository.findByCa_Id(any())).thenReturn(Optional.of(cert));
-
+        when(certificateRepository.findById(any())).thenReturn(Optional.of(cert));
         String chainCert = String.join("\n", Collections.nCopies(4, CommonTestUtil.ROOT_CA_CERT_PEM));
         ResponseBodyForReadChainCA result = service.getCAChain(1L);
         assertNotNull(result);

@@ -13,9 +13,8 @@ import com.nhncloud.pca.model.ca.CaDto;
 public interface CaMapper {
     List<TestDto> toDtoList(List<CaEntity> testEntities);
 
-    @Mapping(target = "signedCa", ignore = true)
     CaDto toDto(CaEntity entity);
 
-    @Mapping(target = "signedCa", ignore = true)
+    @Mapping(target = "certificate", ignore = true)
     CaEntity toEntity(CaDto dto);
 }

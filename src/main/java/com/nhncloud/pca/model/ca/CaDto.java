@@ -1,20 +1,18 @@
 package com.nhncloud.pca.model.ca;
 
-import lombok.Builder;
-import lombok.Data;
-
 import java.time.LocalDateTime;
 
 import com.nhncloud.pca.constant.ca.CaStatus;
-import com.nhncloud.pca.model.certificate.CertificateDto;
+
+import lombok.Builder;
+import lombok.Data;
 
 @Data
 @Builder
 public class CaDto {
     private Long id;
-    private CertificateDto signedCa;
+    private Long toastProjectId;
     private String name;
-    private String type;
     private CaStatus status;
     private LocalDateTime deletionDatetime;
     private String creationUser;

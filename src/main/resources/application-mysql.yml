@@ -4,7 +4,7 @@ spring:
       on-profile: test,local
   datasource:
     driver-class-name: com.mysql.cj.jdbc.Driver
-    url: jdbc:mysql://730a7c5e-9fb5-446f-bcb8-1d4a1ea370f4.internal.kr1.mysql.rds.nhncloudservice.com:13306/kms_dev
-    username: kms
-    password: kms345#$%
+    url: jdbc:mysql://3ba9e2dd-041d-4104-b300-f8c25ee0d302.internal.kr1.mysql.rds.nhncloudservice.com:13306/pca_dev
+    username: pca
+    password: pca!@#123
 ---

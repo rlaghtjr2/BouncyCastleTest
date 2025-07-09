@@ -23,7 +23,6 @@ import org.bouncycastle.operator.OperatorCreationException;
 import org.bouncycastle.operator.jcajce.JcaContentSignerBuilder;
 
 import com.nhncloud.pca.constant.ca.CaStatus;
-import com.nhncloud.pca.constant.ca.CaType;
 import com.nhncloud.pca.constant.certificate.CertificateStatus;
 import com.nhncloud.pca.entity.CaEntity;
 import com.nhncloud.pca.entity.CertificateEntity;
@@ -69,7 +68,7 @@ public class CommonTestUtil {
 
     public static final Long TEST_CA_INFO_ID = 1L;
     public static final String TEST_CA_INFO_NAME = "Test CA";
-    public static final String TEST_CA_INFO_TYPE = CaType.ROOT.getType();
+    public static final Long TEST_CA_INFO_TOAST_PROJECT_ID = 1L;
 
     public static final CaStatus TEST_CERTIFICATE_INFO_STATUS = CaStatus.ACTIVE;
     public static final String TEST_CERTIFICATE_INFO_CREATION_DATETIME = "2023-10-01T00:00:00";
@@ -136,7 +135,7 @@ public class CommonTestUtil {
         CaInfo caInfo = CaInfo.builder()
             .id(TEST_CA_INFO_ID)
             .name(TEST_CA_INFO_NAME)
-            .type(CaType.ROOT.getType())
+            .toastProjectId(TEST_CA_INFO_TOAST_PROJECT_ID)
             .status(CaStatus.ACTIVE)
             .build();
         return caInfo;
@@ -158,7 +157,7 @@ public class CommonTestUtil {
         CaInfo caInfo = CaInfo.builder()
             .id(TEST_CA_INFO_ID)
             .name(TEST_CA_INFO_NAME)
-            .type(CaType.INTERMEDIATE.getType())
+            .toastProjectId(TEST_CA_INFO_TOAST_PROJECT_ID)
             .status(CaStatus.ACTIVE)
             .build();
         return caInfo;
@@ -191,7 +190,7 @@ public class CommonTestUtil {
         CaEntity caEntity = new CaEntity();
         caEntity.setId(TEST_CA_INFO_ID);
         caEntity.setName(TEST_CA_INFO_NAME);
-        caEntity.setType(TEST_CA_INFO_TYPE);
+        caEntity.setToastProjectId(TEST_CA_INFO_TOAST_PROJECT_ID);
         caEntity.setStatus(CaStatus.ACTIVE);
         caEntity.setCreationUser("HOSEOK");
         caEntity.setCreationDatetime(LocalDateTime.now());
