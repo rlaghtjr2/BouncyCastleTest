@@ -16,4 +16,6 @@ public interface CertificateRepository extends JpaRepository<CertificateEntity, 
     Optional<List<CertificateEntity>> findBySignedCertificateIdAndCaIsNullAndStatusNot(String signedCaCaId, CertificateStatus status);
 
     Optional<CertificateEntity> findByIdAndStatus(Long certificateId, CertificateStatus status);
+
+    Optional<CertificateEntity> findByIdAndCa_Id(Long certificateId, Long caId);
 }

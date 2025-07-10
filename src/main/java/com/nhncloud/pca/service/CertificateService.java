@@ -7,7 +7,7 @@ import com.nhncloud.pca.model.response.certificate.ResponseBodyForReadCertList;
 import com.nhncloud.pca.model.response.certificate.ResponseBodyForUpdateCert;
 
 public interface CertificateService {
-    ResponseBodyForCreateCert generateCert(RequestBodyForCreateCert requestBody, Long caId) throws Exception;
+    ResponseBodyForCreateCert generateCert(RequestBodyForCreateCert requestBody, Long caId, Long certId) throws Exception;
 
     ResponseBodyForReadCert getCert(Long caId, Long certId);
 

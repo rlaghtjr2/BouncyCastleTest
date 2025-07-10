@@ -201,7 +201,8 @@ public class CaServiceImpl implements CaService {
         String savedCertificateId = savedCertificate.getId().toString();
 
         // 올바른 signedCertificateId 설정
-        String signedCertificateId = Optional.ofNullable(upperCaEntity.getCertificate())
+        CertificateEntity upperCertificateEntity = getCertificateById(upperCaEntity, certificateId);
+        String signedCertificateId = Optional.ofNullable(upperCertificateEntity)
             .map(cert -> cert.getSignedCertificateId() + "," + savedCertificateId)
             .orElse(savedCertificateId);
 
@@ -242,12 +243,20 @@ public class CaServiceImpl implements CaService {
                 CaDto caDto = caMapper.toDto(caEntity);
                 CaInfo caInfo = CaInfo.fromCaDto(caDto);
 
-                CertificateDto certificateDto = certificateMapper.toDto(caEntity.getCertificate());
-                CertificateInfo caCertificateInfo = getCertificateInfoByCertificateDto(certificateDto);
+                // 모든 certificates를 List로 변환
+                List<CertificateInfo> certificateInfoList = new ArrayList<>();
+                if (caEntity.getCertificates() != null && !caEntity.getCertificates().isEmpty()) {
+                    certificateInfoList = caEntity.getCertificates().stream()
+                        .map(certificate -> {
+                            CertificateDto certificateDto = certificateMapper.toDto(certificate);
+                            return getCertificateInfoByCertificateDto(certificateDto);
+                        })
+                        .collect(Collectors.toList());
+                }
 
-                return ResponseBodyForReadCA.builder().
-                    caInfo(caInfo)
-                    .certificateInfo(caCertificateInfo)
+                return ResponseBodyForReadCA.builder()
+                    .caInfo(caInfo)
+                    .certificateInfoList(certificateInfoList)
                     .status(caInfo.getStatus())
                     .creationDatetime(caDto.getCreationDatetime())
                     .creationUser(caDto.getCreationUser())
@@ -273,18 +282,24 @@ public class CaServiceImpl implements CaService {
         CaDto caDto = caMapper.toDto(caEntity);
         CaInfo caInfo = CaInfo.fromCaDto(caDto);
 
-        CertificateDto certificateDto = certificateMapper.toDto(caEntity.getCertificate());
-        CertificateInfo caCertificateInfo = getCertificateInfoByCertificateDto(certificateDto);
+        // 모든 certificates를 List로 변환
+        List<CertificateInfo> certificateInfoList = new ArrayList<>();
+        if (caEntity.getCertificates() != null && !caEntity.getCertificates().isEmpty()) {
+            certificateInfoList = caEntity.getCertificates().stream()
+                .map(certificate -> {
+                    CertificateDto certificateDto = certificateMapper.toDto(certificate);
+                    return getCertificateInfoByCertificateDto(certificateDto);
+                })
+                .collect(Collectors.toList());
+        }
 
-        ResponseBodyForReadCA result = ResponseBodyForReadCA.builder().
-            caInfo(caInfo)
-            .certificateInfo(caCertificateInfo)
+        return ResponseBodyForReadCA.builder()
+            .caInfo(caInfo)
+            .certificateInfoList(certificateInfoList)
             .status(caInfo.getStatus())
             .creationDatetime(caDto.getCreationDatetime())
             .creationUser(caDto.getCreationUser())
             .build();
-
-        return result;
     }
 
     @Override
@@ -354,11 +369,14 @@ public class CaServiceImpl implements CaService {
         caEntity.setStatus(CaStatus.DELETED);
         caEntity.setDeletionDatetime(LocalDateTime.now());
 
-        CertificateEntity certificateEntity = caEntity.getCertificate();
-        certificateEntity.setStatus(CertificateStatus.DELETED);
-        certificateEntity.setDeletionDatetime(LocalDateTime.now());
+        // 모든 certificates를 삭제 상태로 변경
+        if (caEntity.getCertificates() != null) {
+            caEntity.getCertificates().forEach(cert -> {
+                cert.setStatus(CertificateStatus.DELETED);
+                cert.setDeletionDatetime(LocalDateTime.now());
+            });
+        }
 
-        caEntity.setCertificate(certificateEntity);
         //TODO: 하위 CA 삭제 및 인증서들 삭제구현
 
         CaEntity saveEntity = caRepository.save(caEntity);
@@ -378,10 +396,12 @@ public class CaServiceImpl implements CaService {
         CaEntity caEntity = caRepository.findByIdAndStatus(caId, CaStatus.DISABLED).orElseThrow(() -> new RuntimeException("CA not found"));
         caEntity.setStatus(CaStatus.ACTIVE);
 
-        CertificateEntity certificateEntity = caEntity.getCertificate();
-        certificateEntity.setStatus(CertificateStatus.ACTIVE);
-
-        caEntity.setCertificate(certificateEntity);
+        // 모든 certificates를 활성화 상태로 변경
+        if (caEntity.getCertificates() != null) {
+            caEntity.getCertificates().forEach(cert -> {
+                cert.setStatus(CertificateStatus.ACTIVE);
+            });
+        }
 
         CaEntity saveEntity = caRepository.save(caEntity);
         CaDto saveCaDto = caMapper.toDto(saveEntity);
@@ -398,10 +418,12 @@ public class CaServiceImpl implements CaService {
         CaEntity caEntity = caRepository.findByIdAndStatus(caId, CaStatus.ACTIVE).orElseThrow(() -> new RuntimeException("CA not found"));
         caEntity.setStatus(CaStatus.DISABLED);
 
-        CertificateEntity certificateEntity = caEntity.getCertificate();
-        certificateEntity.setStatus(CertificateStatus.DISABLED);
-
-        caEntity.setCertificate(certificateEntity);
+        // 모든 certificates를 비활성화 상태로 변경
+        if (caEntity.getCertificates() != null) {
+            caEntity.getCertificates().forEach(cert -> {
+                cert.setStatus(CertificateStatus.DISABLED);
+            });
+        }
 
         CaEntity saveEntity = caRepository.save(caEntity);
         CaDto saveCaDto = caMapper.toDto(saveEntity);
@@ -438,16 +460,52 @@ public class CaServiceImpl implements CaService {
         return chain;
     }
 
+    /**
+     * CA의 certificates 중에서 특정 certificateId와 일치하는 certificate를 반환합니다
+     */
+    private CertificateEntity getCertificateById(CaEntity caEntity, Long certificateId) {
+        if (caEntity.getCertificates() == null || caEntity.getCertificates().isEmpty()) {
+            return null;
+        }
+
+        if (certificateId == null) {
+            // certificateId가 null인 경우 첫 번째 certificate 반환
+            return caEntity.getCertificates().get(0);
+        }
+
+        return caEntity.getCertificates().stream()
+            .filter(cert -> cert.getId().equals(certificateId))
+            .findFirst()
+            .orElse(null);
+    }
+
+    /**
+     * CA의 주요 certificate를 가져옵니다 (가장 최근 생성된 ACTIVE 상태)
+     */
+    private CertificateEntity getPrimaryCertificate(CaEntity caEntity) {
+        if (caEntity.getCertificates() == null || caEntity.getCertificates().isEmpty()) {
+            return null;
+        }
+
+        return caEntity.getCertificates().stream()
+            .filter(cert -> cert.getStatus() == CertificateStatus.ACTIVE)
+            .sorted((c1, c2) -> c2.getCreationDatetime().compareTo(c1.getCreationDatetime()))
+            .findFirst()
+            .orElse(caEntity.getCertificates().get(0)); // ACTIVE가 없으면 첫 번째 certificate
+    }
+
+    /**
+     * CA의 첫 번째 certificate를 가져옵니다
+     */
+    private CertificateEntity getFirstCertificate(CaEntity caEntity) {
+        if (caEntity.getCertificates() == null || caEntity.getCertificates().isEmpty()) {
+            return null;
+        }
+        return caEntity.getCertificates().get(0);
+    }
+
     private CertificateInfo getCertificateInfoByCertificateDto(CertificateDto certificateDto) {
-        X509Certificate certificate = BouncyCastleUtil.parseCertificate(certificateDto.getCertificatePem());
-
-        CertificateInfo caCertificateInfo = CertificateInfo.fromCertificateDtoAndCertificate(
-            certificateDto,
-            certificate
-        );
-
-        caCertificateInfo.setCertificateId(certificateDto.getId());
-
-        return caCertificateInfo;
+        X509Certificate x509Certificate = BouncyCastleUtil.parseCertificate(certificateDto.getCertificatePem());
+        return CertificateInfo.fromCertificateDtoAndCertificate(certificateDto, x509Certificate);
     }
 }

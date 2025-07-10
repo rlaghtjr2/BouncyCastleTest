@@ -75,8 +75,8 @@ public class CertificateServiceImpl implements CertificateService {
 
 
     @Override
-    public ResponseBodyForCreateCert generateCert(RequestBodyForCreateCert requestBody, Long caId) throws Exception {
-        log.info("generateCert() = {}, caId = {}", requestBody, caId);
+    public ResponseBodyForCreateCert generateCert(RequestBodyForCreateCert requestBody, Long caId, Long certId) throws Exception {
+        log.info("generateCert() = {}, caId = {}, certId = {}", requestBody, caId, certId);
 
         //1. 인증서 생성에 사용할 Key 만들기
         KeyPair keyPair = generateKeyPair(requestBody.getKeyInfo());
@@ -84,7 +84,7 @@ public class CertificateServiceImpl implements CertificateService {
         //2. 정보 세팅
         SubjectInfo subjectInfo = requestBody.getSubjectInfo();
 
-        CertificateEntity upperCertEntity = certificateRepository.findByCa_Id(caId).orElseThrow(() -> new RuntimeException("Certificate not found"));
+        CertificateEntity upperCertEntity = certificateRepository.findByIdAndCa_Id(certId, caId).orElseThrow(() -> new RuntimeException("Certificate not found"));
         CertificateDto upperCertDto = certificateMapper.toDto(upperCertEntity);
         CaDto upperCaDto = caMapper.toDto(upperCertEntity.getCa());
         if (upperCaDto.getStatus() != CaStatus.ACTIVE) {
@@ -165,7 +165,7 @@ public class CertificateServiceImpl implements CertificateService {
             .serialNo(CertificateUtil.formatSerialNumber(certificate.getSerialNumber().toByteArray()))
             .certificatePem(certificatePem)
             .privateKey(privateKeyPem)
-            .issuer(upperCertDto.getCertificatePem())
+            .issuer(upperCertDto.getSubject())
             .build();
 
         return result;

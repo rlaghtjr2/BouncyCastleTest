@@ -22,7 +22,6 @@ import com.nhncloud.pca.mapper.CaMapper;
 import com.nhncloud.pca.mapper.CaMapperImpl;
 import com.nhncloud.pca.mapper.CertificateMapper;
 import com.nhncloud.pca.mapper.CertificateMapperImpl;
-import com.nhncloud.pca.model.certificate.CertificateInfo;
 import com.nhncloud.pca.model.response.certificate.ResponseBodyForCreateCert;
 import com.nhncloud.pca.model.response.certificate.ResponseBodyForReadCert;
 import com.nhncloud.pca.model.response.certificate.ResponseBodyForUpdateCert;
@@ -55,15 +54,14 @@ public class CertificateServiceTest {
 
     @Test
     public void test_generateLeaf인증서_정상_생성() throws Exception {
-        CertificateInfo certificateInfo = CommonTestUtil.createTestRootCaCertificateInfo();
         CaEntity ca = CommonTestUtil.createTestCaEntity();
         CertificateEntity certificate = CommonTestUtil.createTestCertificateEntity();
         certificate.setCa(ca);
 
-        when(certificateRepository.findByCa_Id(any())).thenReturn(Optional.of(certificate));
+        when(certificateRepository.findByIdAndCa_Id(any(), any())).thenReturn(Optional.of(certificate));
         when(certificateRepository.save(any())).thenReturn(new CertificateEntity());
 
-        ResponseBodyForCreateCert result = service.generateCert(CommonTestUtil.createTestCertificateRequestBody(), 1L);
+        ResponseBodyForCreateCert result = service.generateCert(CommonTestUtil.createTestCertificateRequestBody(), 1L, 1L);
         assertNotNull(result);
 
         System.out.println(result);

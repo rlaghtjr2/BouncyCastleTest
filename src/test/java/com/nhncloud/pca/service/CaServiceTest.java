@@ -7,6 +7,7 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.when;
 
 import java.time.LocalDateTime;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
@@ -31,7 +32,6 @@ import com.nhncloud.pca.mapper.CaMapper;
 import com.nhncloud.pca.mapper.CaMapperImpl;
 import com.nhncloud.pca.mapper.CertificateMapper;
 import com.nhncloud.pca.mapper.CertificateMapperImpl;
-import com.nhncloud.pca.model.certificate.CertificateInfo;
 import com.nhncloud.pca.model.request.ca.RequestBodyForCreateCA;
 import com.nhncloud.pca.model.response.ca.ResponseBodyForCreateCA;
 import com.nhncloud.pca.model.response.ca.ResponseBodyForReadCA;
@@ -67,11 +67,15 @@ public class CaServiceTest {
 
     @Test
     public void test_rootCA_정상_생성() {
-        CaEntity caEntity = new CaEntity();
-        caEntity.setId(1L);
+        // CaEntity Mock 설정
+        CaEntity caEntity = CommonTestUtil.createTestCaEntity();
         when(caRepository.save(any())).thenReturn(caEntity);
 
-        ResponseBodyForCreateCA result = service.generateCa(CommonTestUtil.createTestCertificateRequestBody(),  null);
+        // CertificateEntity Mock 설정 (generateCa에서 certificate 저장)
+        CertificateEntity certificateEntity = CommonTestUtil.createTestCertificateEntity();
+        when(certificateRepository.save(any())).thenReturn(certificateEntity);
+
+        ResponseBodyForCreateCA result = service.generateCa(CommonTestUtil.createTestCertificateRequestBody(), null);
 
         System.out.println(result);
         assertNotNull(result);
@@ -83,7 +87,7 @@ public class CaServiceTest {
         requestBody.getKeyInfo().setAlgorithm("INVALID_ALGORITHM");
         Exception exception = assertThrows(RuntimeException.class, () -> {
             // 예외를 발생시킬 코드
-            service.generateCa(requestBody,  null);
+            service.generateCa(requestBody, null);
         });
 
         assertEquals("Wrong Algorithm", exception.getMessage());
@@ -91,18 +95,27 @@ public class CaServiceTest {
 
     @Test
     public void test_generateIntermediateCa_정상_생성() {
-        CertificateInfo certificateInfo = CommonTestUtil.createTestRootCaCertificateInfo();
+        // Upper CA 설정 (certificateId=1L에 해당하는 certificate)
+        CertificateEntity upperCertificate = CommonTestUtil.createTestCertificateEntity();
+        upperCertificate.setId(1L);
 
-        CaEntity ca = CommonTestUtil.createTestCaEntity();
+        CaEntity upperCa = CommonTestUtil.createTestCaEntity();
+        upperCa.setCertificates(Arrays.asList(upperCertificate)); // certificates 설정
+        upperCertificate.setCa(upperCa);
 
-        CertificateEntity certificate = CommonTestUtil.createTestCertificateEntity();
-        certificate.setCa(ca);
-//        ca.setSignedCertificates(new ArrayList<>(List.of(certificate)));
+        // 새로 생성될 CA/Certificate Mock 설정
+        CaEntity newCa = CommonTestUtil.createTestCaEntity();
+        newCa.setId(2L);
 
+        CertificateEntity newCertificate = CommonTestUtil.createTestCertificateEntity();
+        newCertificate.setId(2L);
 
-        when(caRepository.save(any())).thenReturn(ca);
-        when(certificateRepository.findByCa_Id(any())).thenReturn(Optional.of(certificate));
-        ResponseBodyForCreateCA result = service.generateCa(CommonTestUtil.createTestCertificateRequestBody(),  1L);
+        // Mock 설정
+        when(certificateRepository.findById(1L)).thenReturn(Optional.of(upperCertificate)); // 변경: findByCa_Id → findById
+        when(caRepository.save(any())).thenReturn(newCa);
+        when(certificateRepository.save(any())).thenReturn(newCertificate);
+
+        ResponseBodyForCreateCA result = service.generateCa(CommonTestUtil.createTestCertificateRequestBody(), 1L);
 
         System.out.println(result);
         assertNotNull(result);
@@ -112,7 +125,7 @@ public class CaServiceTest {
     public void test_CA_조회() {
         CaEntity ca = CommonTestUtil.createTestCaEntity();
         CertificateEntity certificate = CommonTestUtil.createTestCertificateEntity();
-        ca.setCertificate(certificate);
+        ca.setCertificates(Arrays.asList(certificate));
         when(caRepository.findByIdAndStatusNot(any(), any())).thenReturn(Optional.of(ca));
 
         ResponseBodyForReadCA result = service.getCA(1L);
@@ -122,13 +135,12 @@ public class CaServiceTest {
         assertEquals(result.getCaInfo().getId(), CommonTestUtil.TEST_CA_INFO_ID);
     }
 
-
     @Test
     public void test_ChainCA_조회() {
         CertificateEntity cert = CommonTestUtil.createTestCertificateEntity();
         CertificateEntity rootCert = CommonTestUtil.createTestCertificateEntity();
         CaEntity rootCa = CommonTestUtil.createTestCaEntity();
-        rootCa.setCertificate(rootCert);
+        rootCa.setCertificates(Arrays.asList(rootCert));
         rootCert.setCa(rootCa);
 
         when(certificateRepository.findByCa_Id(any())).thenReturn(Optional.of(cert));
@@ -143,7 +155,7 @@ public class CaServiceTest {
     public void test_CA_리스트_조회() {
         CaEntity ca = CommonTestUtil.createTestCaEntity();
         CertificateEntity certificate = CommonTestUtil.createTestCertificateEntity();
-        ca.setCertificate(certificate);
+        ca.setCertificates(Arrays.asList(certificate));
         Pageable pageable = PageRequest.of(0, 10);
         List<CaEntity> caList = List.of(ca);
         Page<CaEntity> page = new PageImpl<>(caList, pageable, caList.size());
@@ -191,12 +203,11 @@ public class CaServiceTest {
         assertEquals(result.getCaInfo().getStatus(), CaStatus.ACTIVE);
     }
 
-
     @Test
     public void test_CA_즉시_삭제() {
         CaEntity ca = CommonTestUtil.createTestCaEntity();
         CertificateEntity certificate = CommonTestUtil.createTestCertificateEntity();
-        ca.setCertificate(certificate);
+        ca.setCertificates(Arrays.asList(certificate));
         ca.setStatus(CaStatus.DELETE_SCHEDULED);
 
         CaEntity returnCa = CommonTestUtil.createTestCaEntity();
@@ -205,7 +216,7 @@ public class CaServiceTest {
         returnCa.setStatus(CaStatus.DELETED);
         returnCert.setStatus(CertificateStatus.DELETED);
 
-        returnCa.setCertificate(returnCert);
+        returnCa.setCertificates(Arrays.asList(returnCert));
 
         when(caRepository.findByIdAndStatus(any(), any())).thenReturn(Optional.of(ca));
         when(caRepository.save(any())).thenReturn(returnCa);
@@ -220,7 +231,7 @@ public class CaServiceTest {
     public void test_CA_활성화() {
         CaEntity ca = CommonTestUtil.createTestCaEntity();
         CertificateEntity certificate = CommonTestUtil.createTestCertificateEntity();
-        ca.setCertificate(certificate);
+        ca.setCertificates(Arrays.asList(certificate));
         ca.setStatus(CaStatus.DISABLED);
 
         CaEntity returnCa = CommonTestUtil.createTestCaEntity();
@@ -229,12 +240,12 @@ public class CaServiceTest {
         returnCa.setStatus(CaStatus.ACTIVE);
         returnCert.setStatus(CertificateStatus.ACTIVE);
 
-        returnCa.setCertificate(returnCert);
+        returnCa.setCertificates(Arrays.asList(returnCert));
 
         when(caRepository.findByIdAndStatus(any(), any())).thenReturn(Optional.of(ca));
         when(caRepository.save(any())).thenReturn(returnCa);
 
-        ResponseBodyForUpdateCA result = service.removeCert(1L);
+        ResponseBodyForUpdateCA result = service.activateCa(1L); // 수정: removeCert → activateCa
 
         assertNotNull(result);
         assertEquals(result.getCaInfo().getStatus(), CaStatus.ACTIVE);
@@ -244,7 +255,7 @@ public class CaServiceTest {
     public void test_CA_비활성화() {
         CaEntity ca = CommonTestUtil.createTestCaEntity();
         CertificateEntity certificate = CommonTestUtil.createTestCertificateEntity();
-        ca.setCertificate(certificate);
+        ca.setCertificates(Arrays.asList(certificate));
         ca.setStatus(CaStatus.ACTIVE);
 
         CaEntity returnCa = CommonTestUtil.createTestCaEntity();
@@ -253,12 +264,12 @@ public class CaServiceTest {
         returnCa.setStatus(CaStatus.DISABLED);
         returnCert.setStatus(CertificateStatus.DISABLED);
 
-        returnCa.setCertificate(returnCert);
+        returnCa.setCertificates(Arrays.asList(returnCert));
 
         when(caRepository.findByIdAndStatus(any(), any())).thenReturn(Optional.of(ca));
         when(caRepository.save(any())).thenReturn(returnCa);
 
-        ResponseBodyForUpdateCA result = service.removeCert(1L);
+        ResponseBodyForUpdateCA result = service.disableCa(1L); // 수정: removeCert → disableCa
 
         assertNotNull(result);
         assertEquals(result.getCaInfo().getStatus(), CaStatus.DISABLED);

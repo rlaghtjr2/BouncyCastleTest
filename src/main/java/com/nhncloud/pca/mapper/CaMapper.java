@@ -15,6 +15,6 @@ public interface CaMapper {
 
     CaDto toDto(CaEntity entity);
 
-    @Mapping(target = "certificate", ignore = true)
+    @Mapping(target = "certificates", ignore = true)
     CaEntity toEntity(CaDto dto);
 }

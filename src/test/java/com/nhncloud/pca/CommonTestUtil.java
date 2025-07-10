@@ -11,6 +11,7 @@ import java.security.Security;
 import java.security.cert.CertificateException;
 import java.security.cert.X509Certificate;
 import java.time.LocalDateTime;
+import java.util.Arrays;
 import java.util.Date;
 
 import org.bouncycastle.asn1.x500.X500Name;
@@ -178,7 +179,7 @@ public class CommonTestUtil {
     public static ResponseBodyForReadCA createTestCertificateResult_Read() {
         ResponseBodyForReadCA caCreateResult = ResponseBodyForReadCA.builder().
             caInfo(createTestCaInfo_Intermediate())
-            .certificateInfo(createTestRootCaCertificateInfo())
+            .certificateInfoList(Arrays.asList(createTestRootCaCertificateInfo()))
             .status(CaStatus.ACTIVE)
             .creationDatetime(LocalDateTime.now())
             .creationUser("HOSEOK")

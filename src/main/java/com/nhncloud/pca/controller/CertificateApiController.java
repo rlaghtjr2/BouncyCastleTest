@@ -1,7 +1,5 @@
 package com.nhncloud.pca.controller;
 
-import lombok.extern.slf4j.Slf4j;
-
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -19,6 +17,8 @@ import com.nhncloud.pca.model.response.certificate.ResponseBodyForReadCertList;
 import com.nhncloud.pca.model.response.certificate.ResponseBodyForUpdateCert;
 import com.nhncloud.pca.service.CertificateService;
 
+import lombok.extern.slf4j.Slf4j;
+
 @Slf4j
 @RestController
 @RequestMapping("/ca/{caId}/cert")
@@ -29,11 +29,11 @@ public class CertificateApiController {
         this.certificateService = certificateService;
     }
 
-    @PostMapping
-    public ResponseEntity<ApiResponse> createCert(@RequestBody RequestBodyForCreateCert requestBody, @PathVariable("caId") Long caId) {
+    @PostMapping("/{certId}")
+    public ResponseEntity<ApiResponse> createCert(@RequestBody RequestBodyForCreateCert requestBody, @PathVariable("caId") Long caId, @PathVariable("certId") Long certId) {
         ResponseBodyForCreateCert result;
         try {
-            result = certificateService.generateCert(requestBody, caId);
+            result = certificateService.generateCert(requestBody, caId, certId);
         } catch (Exception e) {
             return ResponseEntity.ok(ApiResponse.fail(50000, e.getMessage()));
         }
