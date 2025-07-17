@@ -20,7 +20,7 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 
 @Entity
-@Table(name = "PCA_ACME_ORDER")
+@Table(name = "ACME_ORDER")
 @Data
 @Builder
 @NoArgsConstructor

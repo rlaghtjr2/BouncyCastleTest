@@ -12,7 +12,7 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 
 @Entity
-@Table(name = "PCA_ACME_IDENTIFIER")
+@Table(name = "ACME_IDENTIFIER")
 @Data
 @Builder
 @NoArgsConstructor

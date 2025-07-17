@@ -24,7 +24,7 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 
 @Entity
-@Table(name = "PCA_ACME_ACCOUNT")
+@Table(name = "ACME_ACCOUNT")
 @Data
 @Builder
 @NoArgsConstructor
@@ -35,6 +35,9 @@ public class AcmeAccountEntity {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
+    @Column(name = "ca_id", nullable = false)
+    private Long caId;
+
     @Column(name = "status", nullable = false, length = 20)
     @Convert(converter = AccountStatusConverter.class)
     private AccountStatus status;
@@ -44,11 +47,15 @@ public class AcmeAccountEntity {
     private List<String> contact;
 
     @Column(name = "terms_of_service_agreed")
+    @Builder.Default
     private Boolean termsOfServiceAgreed = false;
 
     @Column(name = "external_account_binding", columnDefinition = "JSON")
     @Convert(converter = ExternalAccountBindingConverter.class)
     private ExternalAccountBinding externalAccountBinding;
+
+    @Column(name = "private_key", nullable = false, columnDefinition = "TEXT")
+    private String privateKey;
 
     @Column(name = "creation_user", nullable = false, length = 100)
     private String creationUser;

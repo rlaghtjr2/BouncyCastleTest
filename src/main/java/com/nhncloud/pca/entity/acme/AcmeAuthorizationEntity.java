@@ -20,7 +20,7 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 
 @Entity
-@Table(name = "PCA_ACME_AUTHORIZATION")
+@Table(name = "ACME_AUTHORIZATION")
 @Data
 @Builder
 @NoArgsConstructor

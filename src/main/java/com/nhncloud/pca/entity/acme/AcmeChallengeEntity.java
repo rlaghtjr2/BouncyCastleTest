@@ -24,7 +24,7 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 
 @Entity
-@Table(name = "PCA_ACME_CHALLENGE")
+@Table(name = "ACME_CHALLENGE")
 @Data
 @Builder
 @NoArgsConstructor
