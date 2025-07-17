@@ -3,10 +3,12 @@ package com.nhncloud.pca.util;
 import java.nio.charset.StandardCharsets;
 import java.text.ParseException;
 import java.util.Base64;
+import java.util.HashMap;
 import java.util.Map;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.nhncloud.pca.model.acme.JwsRequest;
 import com.nhncloud.pca.store.AccountStore;
 import com.nimbusds.jose.JOSEException;
 import com.nimbusds.jose.JWSObject;
@@ -30,19 +32,28 @@ public class JwsUtils {
         }
     }
 
-    public static JwsParseResult parseAndVerifyJws(Map<String, String> jwsRequest, AccountStore accountStore) {
+    public static JwsParseResult parseAndVerifyJws(JwsRequest jwsRequest, AccountStore accountStore) {
         try {
             // 1. Base64로 디코딩
-            String protectedB64 = jwsRequest.get("protected");
-            String payloadB64 = jwsRequest.get("payload");
-            String signatureB64 = jwsRequest.get("signature");
+            String protectedB64 = jwsRequest.getProtectedHeader();
+            String payloadB64 = jwsRequest.getPayload();
+            String signatureB64 = jwsRequest.getSignature();
 
             String protectedJson = new String(Base64.getUrlDecoder().decode(protectedB64), StandardCharsets.UTF_8);
-            String payloadJson = new String(Base64.getUrlDecoder().decode(payloadB64), StandardCharsets.UTF_8);
 
             // 2. JSON 파싱
             Map<String, Object> protectedMap = mapper.readValue(protectedJson, Map.class);
-            Map<String, Object> payloadMap = mapper.readValue(payloadJson, Map.class);
+
+            // payload 처리 - 빈 문자열인 경우 (POST-as-GET 요청)
+            Map<String, Object> payloadMap;
+            if (payloadB64 == null || payloadB64.trim().isEmpty()) {
+                // POST-as-GET 요청의 경우 payload가 빈 문자열
+                payloadMap = new HashMap<>();
+            } else {
+                // 일반적인 경우 payload 디코딩 및 JSON 파싱
+                String payloadJson = new String(Base64.getUrlDecoder().decode(payloadB64), StandardCharsets.UTF_8);
+                payloadMap = mapper.readValue(payloadJson, Map.class);
+            }
 
             // 3. 공개키 추출
             RSAKey jwk;

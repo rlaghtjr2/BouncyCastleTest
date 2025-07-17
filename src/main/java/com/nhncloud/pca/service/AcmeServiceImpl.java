@@ -29,6 +29,7 @@ import com.nhncloud.pca.model.acme.CertificateResult;
 import com.nhncloud.pca.model.acme.Directory;
 import com.nhncloud.pca.model.acme.FinalizeResult;
 import com.nhncloud.pca.model.acme.Identifier;
+import com.nhncloud.pca.model.acme.JwsRequest;
 import com.nhncloud.pca.model.acme.account.AccountCreationResult;
 import com.nhncloud.pca.model.acme.authorization.Authorization;
 import com.nhncloud.pca.model.acme.authorization.AuthorizationResult;
@@ -72,19 +73,9 @@ public class AcmeServiceImpl implements AcmeService {
     }
 
     @Override
-    public String getNonce() {
-        return nonceStore.generateNonce();
-    }
-
-    @Override
-    public AccountCreationResult createAccount(Map<String, String> request, HttpServletRequest httpRequest) {
-        // 1. JWS 파싱 및 서명 검증
-        JwsUtils.JwsParseResult result = JwsUtils.parseAndVerifyJws(request, accountStore);
-        String nonce = result.protectedHeader.get("nonce").toString();
-        if (!nonceStore.consumeNonce(nonce)) {
-            throw new AcmeProblemException(ProblemType.BAD_NONCE, "The request did not include a valid nonce.",
-                HttpStatus.BAD_REQUEST, nonceStore.generateNonce());
-        }
+    public AccountCreationResult createAccount(JwsRequest jwsRequest, HttpServletRequest httpRequest) {
+        // Interceptor에서 이미 JWS 파싱 및 nonce 검증 완료
+        JwsUtils.JwsParseResult result = (JwsUtils.JwsParseResult) httpRequest.getAttribute("jwsParseResult");
 
         Map<String, Object> payloadMap = result.payload;
         RSAKey jwk = result.accountKey;
@@ -106,21 +97,12 @@ public class AcmeServiceImpl implements AcmeService {
             .contact(contact)
             .replayNonce(replayNonce)
             .build();
-
     }
 
     @Override
-    public OrderCreationResult createOrder(Map<String, String> request, String baseUrl) {
-
-        // JWS 검증
-        JwsUtils.JwsParseResult result = JwsUtils.parseAndVerifyJws(request, accountStore);
-
-        // Nonce 확인
-        String nonce = result.protectedHeader.get("nonce").toString();
-        if (!nonceStore.consumeNonce(nonce)) {
-            throw new AcmeProblemException(ProblemType.BAD_NONCE, "The request did not include a valid nonce.",
-                HttpStatus.BAD_REQUEST, nonceStore.generateNonce());
-        }
+    public OrderCreationResult createOrder(JwsRequest jwsRequest, String baseUrl, HttpServletRequest httpRequest) {
+        // Interceptor에서 이미 JWS 파싱 및 nonce 검증 완료
+        JwsUtils.JwsParseResult result = (JwsUtils.JwsParseResult) httpRequest.getAttribute("jwsParseResult");
 
         // identifiers 파싱
         Map<String, Object> payloadMap = result.payload;
@@ -128,6 +110,7 @@ public class AcmeServiceImpl implements AcmeService {
             payloadMap.get("identifiers"), new TypeReference<List<Identifier>>() {
             }
         );
+
         // Authz + Challenge 생성
         List<Authorization> authzs = new ArrayList<>();
         for (Identifier identifier : identifiers) {
@@ -144,10 +127,8 @@ public class AcmeServiceImpl implements AcmeService {
             .order(order)
             .authzs(authzs)
             .replayNonce(replayNonce)
-            .originalNonce(nonce)
+            .originalNonce(result.protectedHeader.get("nonce").toString())
             .build();
-
-
     }
 
     @Override
@@ -189,19 +170,9 @@ public class AcmeServiceImpl implements AcmeService {
     }
 
     @Override
-    public ChallengeResult triggerChallenge(String id, Map<String, String> jwsRequest, String baseUrl) {
-        JwsUtils.JwsParseResult result = null;
-        try {
-            result = JwsUtils.parseAndVerifyJws(jwsRequest, accountStore);
-        } catch (Exception e) {
-            throw new RuntimeException(e);
-        }
-        String nonce = result.protectedHeader.get("nonce").toString();
-
-        if (!nonceStore.consumeNonce(nonce)) {
-            throw new AcmeProblemException(ProblemType.BAD_NONCE, "The request did not include a valid nonce.",
-                HttpStatus.BAD_REQUEST, nonceStore.generateNonce());
-        }
+    public ChallengeResult triggerChallenge(String id, JwsRequest jwsRequest, String baseUrl, HttpServletRequest httpRequest) {
+        // Interceptor에서 이미 JWS 파싱 및 nonce 검증 완료
+        JwsUtils.JwsParseResult result = (JwsUtils.JwsParseResult) httpRequest.getAttribute("jwsParseResult");
 
         Challenge challenge = challengeStore.getChallenge(id);
         if (challenge == null) {
@@ -226,13 +197,12 @@ public class AcmeServiceImpl implements AcmeService {
             .replayNonce(nonceStore.generateNonce())
             .upLink(authzUrl)
             .build();
-
     }
 
     @Override
-    public FinalizeResult finalizeOrder(String orderId, Map<String, String> jwsRequest) {
-        // 1. JWS 파싱 및 검증
-        JwsUtils.JwsParseResult result = JwsUtils.parseAndVerifyJws(jwsRequest, accountStore);
+    public FinalizeResult finalizeOrder(String orderId, JwsRequest jwsRequest, HttpServletRequest httpRequest) {
+        // Interceptor에서 이미 JWS 파싱 및 nonce 검증 완료
+        JwsUtils.JwsParseResult result = (JwsUtils.JwsParseResult) httpRequest.getAttribute("jwsParseResult");
 
         Map<String, Object> payloadMap = result.payload;
 
@@ -278,7 +248,6 @@ public class AcmeServiceImpl implements AcmeService {
             .status("valid")
             .replayNonce(nonceStore.generateNonce())
             .build();
-
     }
 
     @Override
@@ -312,13 +281,12 @@ public class AcmeServiceImpl implements AcmeService {
     }
 
     @Override
-    public CertificateResult getCertificate(String certificateId) {
-        // 인증서는 Chain으로 구성되어 있으므로, 단일 인증서가 아닌 체인으로 반환
-        // 아직 DB 연동이 안되서, 그냥 새로 발급된 인증서 2개 붙이는 형식으로 진행
+    public CertificateResult getCertificate(String certificateId, String baseUrl) {
         X509Certificate certificate = certStore.get(certificateId);
+
         if (certificate == null) {
-            throw new AcmeProblemException(ProblemType.MALFORMED, "Certificate resource with ID '" + certificateId + "' was not found",
-                HttpStatus.NOT_FOUND, nonceStore.generateNonce());
+            throw new AcmeProblemException(ProblemType.SERVER_INTERNAL, "Certificate data not found",
+                HttpStatus.INTERNAL_SERVER_ERROR, nonceStore.generateNonce());
         }
 
         StringWriter writer = new StringWriter();

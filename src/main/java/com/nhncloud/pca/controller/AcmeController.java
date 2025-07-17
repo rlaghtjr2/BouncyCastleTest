@@ -1,8 +1,5 @@
 package com.nhncloud.pca.controller;
 
-import jakarta.servlet.http.HttpServletRequest;
-import lombok.extern.slf4j.Slf4j;
-
 import java.net.URI;
 import java.time.ZoneOffset;
 import java.util.HashMap;
@@ -24,6 +21,7 @@ import org.springframework.web.bind.annotation.RestController;
 import com.nhncloud.pca.model.acme.CertificateResult;
 import com.nhncloud.pca.model.acme.Directory;
 import com.nhncloud.pca.model.acme.FinalizeResult;
+import com.nhncloud.pca.model.acme.JwsRequest;
 import com.nhncloud.pca.model.acme.account.AccountCreationResult;
 import com.nhncloud.pca.model.acme.authorization.Authorization;
 import com.nhncloud.pca.model.acme.authorization.AuthorizationResult;
@@ -32,15 +30,21 @@ import com.nhncloud.pca.model.acme.order.Order;
 import com.nhncloud.pca.model.acme.order.OrderCreationResult;
 import com.nhncloud.pca.model.acme.order.OrderQueryResult;
 import com.nhncloud.pca.service.AcmeService;
+import com.nhncloud.pca.store.NonceStore;
+
+import jakarta.servlet.http.HttpServletRequest;
+import lombok.extern.slf4j.Slf4j;
 
 @RestController
 @RequestMapping("/acme")
 @Slf4j
 public class AcmeController {
     private final AcmeService acmeService;
+    private final NonceStore nonceStore;
 
-    public AcmeController(AcmeService acmeService) {
+    public AcmeController(AcmeService acmeService, NonceStore nonceStore) {
         this.acmeService = acmeService;
+        this.nonceStore = nonceStore;
     }
 
     // /directory
@@ -53,7 +57,8 @@ public class AcmeController {
     // /new-nonce
     @RequestMapping(value = "/new-nonce", method = RequestMethod.HEAD)
     public ResponseEntity<Void> newNonce() {
-        String nonce = acmeService.getNonce();
+        // NonceStore에서 nonce 생성 및 저장
+        String nonce = nonceStore.generateNonce();
 
         return ResponseEntity.noContent()
             .header("Replay-Nonce", nonce)
@@ -63,11 +68,11 @@ public class AcmeController {
 
     // /new-account
     @PostMapping("/new-account")
-    public ResponseEntity<Map<String, Object>> newAccount(@RequestBody Map<String, String> request,
+    public ResponseEntity<Map<String, Object>> newAccount(@RequestBody JwsRequest jwsRequest,
                                                           HttpServletRequest httpRequest) {
         try {
             // 1. JWS 파싱 및 서명 검증
-            AccountCreationResult result = acmeService.createAccount(request, httpRequest);
+            AccountCreationResult result = acmeService.createAccount(jwsRequest, httpRequest);
 
             // 4. 응답 생성
             HttpHeaders headers = new HttpHeaders();
@@ -95,12 +100,12 @@ public class AcmeController {
     }
 
     @PostMapping("/new-order")
-    public ResponseEntity<?> newOrder(@RequestBody Map<String, String> jwsRequest,
+    public ResponseEntity<?> newOrder(@RequestBody JwsRequest jwsRequest,
                                       HttpServletRequest request) {
         try {
             String baseUrl = request.getScheme() + "://" + request.getServerName() + ":" + request.getServerPort();
 
-            OrderCreationResult result = acmeService.createOrder(jwsRequest, baseUrl);
+            OrderCreationResult result = acmeService.createOrder(jwsRequest, baseUrl, request);
 
             Order order = result.getOrder();
             List<Authorization> authzs = result.getAuthzs();
@@ -115,10 +120,8 @@ public class AcmeController {
                 "finalize", order.getFinalize()
             );
 
-            String nonce = acmeService.getNonce();
-
             HttpHeaders headers = new HttpHeaders();
-            headers.set("Replay-Nonce", nonce);
+            headers.set("Replay-Nonce", nonceStore.generateNonce());
             headers.setLocation(URI.create(baseUrl + "/acme/order/" + order.getId()));
 
             log.info("----New Order----");
@@ -143,10 +146,8 @@ public class AcmeController {
             "challenges", result.getChallenges()
         );
 
-        String nonce = acmeService.getNonce();
-
         HttpHeaders headers = new HttpHeaders();
-        headers.set("Replay-Nonce", nonce);
+        headers.set("Replay-Nonce", nonceStore.generateNonce());
         headers.setContentType(MediaType.APPLICATION_JSON);
 
         // status가 valid인 경우에만 Link 헤더 추가
@@ -161,12 +162,11 @@ public class AcmeController {
 
     @PostMapping("/challenge/{id}")
     public ResponseEntity<?> triggerChallenge(@PathVariable String id,
-                                              @RequestBody Map<String, String> jwsRequest,
+                                              @RequestBody JwsRequest jwsRequest,
                                               HttpServletRequest req) {
         try {
             String baseUrl = req.getScheme() + "://" + req.getServerName() + ":" + req.getServerPort();
-            ChallengeResult result = acmeService.triggerChallenge(id, jwsRequest, baseUrl);
-
+            ChallengeResult result = acmeService.triggerChallenge(id, jwsRequest, baseUrl, req);
 
             Map<String, Object> response = Map.of(
                 "type", result.getType(),
@@ -195,27 +195,30 @@ public class AcmeController {
 
     @PostMapping("/order/{orderId}/finalize")
     public ResponseEntity<?> finalizeOrder(@PathVariable String orderId,
-                                           @RequestBody Map<String, String> jwsRequest
+                                           @RequestBody JwsRequest jwsRequest,
+                                           HttpServletRequest request
     ) {
-
         try {
-            // 1. JWS 파싱 및 검증
-            FinalizeResult result = acmeService.finalizeOrder(orderId, jwsRequest);
+            FinalizeResult result = acmeService.finalizeOrder(orderId, jwsRequest, request);
+
+            Map<String, Object> response = Map.of(
+                "status", result.getStatus()
+            );
 
             HttpHeaders headers = new HttpHeaders();
             headers.set("Replay-Nonce", result.getReplayNonce());
             headers.setContentType(MediaType.APPLICATION_JSON);
 
             log.info("----Finalize----");
-            return new ResponseEntity<>(Map.of(
-                "status", "valid"
-            ), headers, HttpStatus.OK);
+            response.forEach((key, value) -> log.info("{}: {}", key, value));
+
+            return new ResponseEntity<>(response, headers, HttpStatus.OK);
 
         } catch (Exception e) {
-            e.printStackTrace();
-            return ResponseEntity.status(500).body(Map.of(
-                "type", "urn:ietf:params:acme:error:serverInternal",
-                "detail", "CSR processing failed"
+            return ResponseEntity.status(400).body(Map.of(
+                "type", "urn:ietf:params:acme:error:badRequest",
+                "detail", e.getMessage(),
+                "status", 400
             ));
         }
     }
@@ -223,30 +226,29 @@ public class AcmeController {
     @PostMapping("/order/{orderId}")
     public ResponseEntity<?> getOrder(@PathVariable String orderId, HttpServletRequest request) {
         String baseUrl = request.getScheme() + "://" + request.getServerName() + ":" + request.getServerPort();
-
         OrderQueryResult result = acmeService.getOrder(orderId, baseUrl);
 
         HttpHeaders headers = new HttpHeaders();
         headers.set("Replay-Nonce", result.getReplayNonce());
         headers.setContentType(MediaType.APPLICATION_JSON);
-        log.info("----GET Order----");
+
+        log.info("----Order----");
         result.getBody().forEach((key, value) -> log.info("{}: {}", key, value));
+
         return new ResponseEntity<>(result.getBody(), headers, HttpStatus.OK);
     }
 
     @PostMapping("/certificate/{id}")
     public ResponseEntity<String> getCertificate(@PathVariable String id) {
-        try {
-            CertificateResult result = acmeService.getCertificate(id);
+        CertificateResult result = acmeService.getCertificate(id, "");
 
-            HttpHeaders headers = new HttpHeaders();
-            headers.setContentType(MediaType.valueOf("application/pem-certificate-chain"));
-            headers.set("Replay-Nonce", result.getReplayNonce());
+        HttpHeaders headers = new HttpHeaders();
+        headers.set("Replay-Nonce", result.getReplayNonce());
+        headers.setContentType(MediaType.valueOf("application/pem-certificate-chain"));
 
-            return new ResponseEntity<>(result.getPemChain(), headers, HttpStatus.OK);
-        } catch (RuntimeException e) {
-            return ResponseEntity.status(500).body("Failed to encode certificate");
-        }
+        log.info("----Certificate----");
+        log.info("PEM Chain: {}", result.getPemChain());
+
+        return new ResponseEntity<>(result.getPemChain(), headers, HttpStatus.OK);
     }
-
 }

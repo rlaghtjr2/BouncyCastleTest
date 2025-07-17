@@ -14,9 +14,17 @@ public class PostAsGetInterceptor implements HandlerInterceptor {
     @Override
     public boolean preHandle(HttpServletRequest request, HttpServletResponse response, Object handler) throws Exception {
         String method = request.getMethod();
-        if ((HttpMethod.GET.matches(method) || HttpMethod.POST.matches(method)) && request.getInputStream().available() == 0) {
+
+        // GET과 HEAD는 body가 없어야 함
+        if (HttpMethod.GET.matches(method) || HttpMethod.HEAD.matches(method)) {
+            return request.getInputStream().available() == 0;
+        }
+
+        // POST는 body가 있어야 함 (또는 없어도 허용)
+        if (HttpMethod.POST.matches(method)) {
             return true;
         }
+
         throw new MethodNotAllowedException("malformed request", null);
     }
 }
