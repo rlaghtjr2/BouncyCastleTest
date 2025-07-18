@@ -9,11 +9,13 @@ import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import java.util.Base64;
+import java.util.Optional;
 
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -25,8 +27,10 @@ import org.mockito.junit.jupiter.MockitoExtension;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.nhncloud.pca.constant.KeyAlgorithm;
+import com.nhncloud.pca.entity.CaEntity;
 import com.nhncloud.pca.entity.acme.AcmeAccountEntity;
 import com.nhncloud.pca.model.response.AccountKeyResponse;
+import com.nhncloud.pca.repository.CaRepository;
 import com.nhncloud.pca.repository.acme.AcmeAccountRepository;
 
 @ExtendWith(MockitoExtension.class)
@@ -34,6 +38,9 @@ class AccountKeyServiceTest {
 
     @Mock
     private AcmeAccountRepository acmeAccountRepository;
+
+    @Mock
+    private CaRepository caRepository;
 
     @Mock
     private ObjectMapper objectMapper;
@@ -58,6 +65,8 @@ class AccountKeyServiceTest {
         int keySize = 2048;
 
         // Mock 설정
+        when(caRepository.findById(testCaId))
+                .thenReturn(Optional.of(new CaEntity(testCaId)));
         when(objectMapper.writeValueAsString(any(AccountKeyResponse.class)))
                 .thenReturn("{\"keyType\":\"RSA\",\"modulus\":\"test\"}");
         when(acmeAccountRepository.save(any(AcmeAccountEntity.class)))
@@ -72,6 +81,7 @@ class AccountKeyServiceTest {
         assertRsaKeyFields(response);
 
         // DB 저장 확인
+        verify(caRepository, times(1)).findById(testCaId);
         verify(objectMapper, times(1)).writeValueAsString(any(AccountKeyResponse.class));
         verify(acmeAccountRepository, times(1)).save(any(AcmeAccountEntity.class));
     }
@@ -84,6 +94,8 @@ class AccountKeyServiceTest {
         int keySize = 4096;
 
         // Mock 설정
+        when(caRepository.findById(testCaId))
+                .thenReturn(Optional.of(new CaEntity(testCaId)));
         when(objectMapper.writeValueAsString(any(AccountKeyResponse.class)))
                 .thenReturn("{\"keyType\":\"RSA\",\"modulus\":\"test\"}");
         when(acmeAccountRepository.save(any(AcmeAccountEntity.class)))
@@ -99,6 +111,7 @@ class AccountKeyServiceTest {
         assertTrue(response.getModulus().length() > 500);
 
         // DB 저장 확인
+        verify(caRepository, times(1)).findById(testCaId);
         verify(objectMapper, times(1)).writeValueAsString(any(AccountKeyResponse.class));
         verify(acmeAccountRepository, times(1)).save(any(AcmeAccountEntity.class));
     }
@@ -113,6 +126,8 @@ class AccountKeyServiceTest {
         int keySize = 256;
 
         // Mock 설정
+        when(caRepository.findById(testCaId))
+                .thenReturn(Optional.of(new CaEntity(testCaId)));
         when(objectMapper.writeValueAsString(any(AccountKeyResponse.class)))
                 .thenReturn("{\"keyType\":\"EC\",\"curve\":\"P-256\"}");
         when(acmeAccountRepository.save(any(AcmeAccountEntity.class)))
@@ -128,6 +143,7 @@ class AccountKeyServiceTest {
         assertEcKeyFields(response);
 
         // DB 저장 확인
+        verify(caRepository, times(1)).findById(testCaId);
         verify(objectMapper, times(1)).writeValueAsString(any(AccountKeyResponse.class));
         verify(acmeAccountRepository, times(1)).save(any(AcmeAccountEntity.class));
     }
@@ -140,6 +156,8 @@ class AccountKeyServiceTest {
         int keySize = 384;
 
         // Mock 설정
+        when(caRepository.findById(testCaId))
+                .thenReturn(Optional.of(new CaEntity(testCaId)));
         when(objectMapper.writeValueAsString(any(AccountKeyResponse.class)))
                 .thenReturn("{\"keyType\":\"EC\",\"curve\":\"P-384\"}");
         when(acmeAccountRepository.save(any(AcmeAccountEntity.class)))
@@ -155,6 +173,7 @@ class AccountKeyServiceTest {
         assertEcKeyFields(response);
 
         // DB 저장 확인
+        verify(caRepository, times(1)).findById(testCaId);
         verify(objectMapper, times(1)).writeValueAsString(any(AccountKeyResponse.class));
         verify(acmeAccountRepository, times(1)).save(any(AcmeAccountEntity.class));
     }
@@ -167,6 +186,8 @@ class AccountKeyServiceTest {
         int keySize = 521;
 
         // Mock 설정
+        when(caRepository.findById(testCaId))
+                .thenReturn(Optional.of(new CaEntity(testCaId)));
         when(objectMapper.writeValueAsString(any(AccountKeyResponse.class)))
                 .thenReturn("{\"keyType\":\"EC\",\"curve\":\"P-521\"}");
         when(acmeAccountRepository.save(any(AcmeAccountEntity.class)))
@@ -182,6 +203,7 @@ class AccountKeyServiceTest {
         assertEcKeyFields(response);
 
         // DB 저장 확인
+        verify(caRepository, times(1)).findById(testCaId);
         verify(objectMapper, times(1)).writeValueAsString(any(AccountKeyResponse.class));
         verify(acmeAccountRepository, times(1)).save(any(AcmeAccountEntity.class));
     }
@@ -192,6 +214,8 @@ class AccountKeyServiceTest {
     @DisplayName("여러 번 키 생성 시 서로 다른 키가 생성되는지 검증")
     void testGenerateAndSaveAccountKey_UniquenessCheck() throws Exception {
         // Mock 설정
+        when(caRepository.findById(testCaId))
+                .thenReturn(Optional.of(new CaEntity(testCaId)));
         when(objectMapper.writeValueAsString(any(AccountKeyResponse.class)))
                 .thenReturn("{\"keyType\":\"RSA\",\"modulus\":\"test\"}");
         when(acmeAccountRepository.save(any(AcmeAccountEntity.class)))
@@ -212,11 +236,31 @@ class AccountKeyServiceTest {
         assertNotEquals(response1.getSecondPrimeFactor(), response2.getSecondPrimeFactor());
 
         // DB 저장이 두 번 호출되었는지 확인
+        verify(caRepository, times(2)).findById(testCaId);
         verify(objectMapper, times(2)).writeValueAsString(any(AccountKeyResponse.class));
         verify(acmeAccountRepository, times(2)).save(any(AcmeAccountEntity.class));
     }
 
     // ========== 예외 처리 테스트 ==========
+
+    @Test
+    @DisplayName("존재하지 않는 CA ID로 생성 시 예외 발생")
+    void testGenerateAndSaveAccountKey_NonExistentCaId() {
+        // Given
+        Long nonExistentCaId = 999L;
+
+        // Mock 설정
+        when(caRepository.findById(nonExistentCaId))
+                .thenReturn(Optional.empty());
+
+        // When & Then
+        assertThrows(IllegalArgumentException.class, () -> {
+            accountKeyService.generateAndSaveAccountKey(KeyAlgorithm.RSA, 2048, nonExistentCaId);
+        });
+
+        // CA 조회가 호출되었는지 확인
+        verify(caRepository, times(1)).findById(nonExistentCaId);
+    }
 
     @Test
     @DisplayName("지원되지 않는 RSA 키 크기로 생성 시 예외 발생")
@@ -248,6 +292,9 @@ class AccountKeyServiceTest {
     @DisplayName("JSON 변환 실패 시 예외 발생")
     void testGenerateAndSaveAccountKey_JsonProcessingException() throws Exception {
         // Given
+        // Mock 설정 (lenient로 설정하여 실제 호출되지 않아도 예외 발생 안함)
+        lenient().when(caRepository.findById(testCaId))
+                .thenReturn(Optional.of(new CaEntity(testCaId)));
         when(objectMapper.writeValueAsString(any(AccountKeyResponse.class)))
                 .thenThrow(new com.fasterxml.jackson.core.JsonProcessingException("JSON processing failed") {});
 
@@ -263,6 +310,8 @@ class AccountKeyServiceTest {
     @DisplayName("RSA 키 생성 및 저장 성능 테스트")
     void testGenerateAndSaveAccountKey_RSA_PerformanceTest() throws Exception {
         // Mock 설정
+        when(caRepository.findById(testCaId))
+                .thenReturn(Optional.of(new CaEntity(testCaId)));
         when(objectMapper.writeValueAsString(any(AccountKeyResponse.class)))
                 .thenReturn("{\"keyType\":\"RSA\",\"modulus\":\"test\"}");
         when(acmeAccountRepository.save(any(AcmeAccountEntity.class)))
@@ -282,6 +331,7 @@ class AccountKeyServiceTest {
         assertTrue(duration < 10000, "RSA key generation and saving took too long: " + duration + "ms");
 
         // DB 저장 확인
+        verify(caRepository, times(1)).findById(testCaId);
         verify(objectMapper, times(1)).writeValueAsString(any(AccountKeyResponse.class));
         verify(acmeAccountRepository, times(1)).save(any(AcmeAccountEntity.class));
     }
@@ -290,6 +340,8 @@ class AccountKeyServiceTest {
     @DisplayName("EC 키 생성 및 저장 성능 테스트")
     void testGenerateAndSaveAccountKey_EC_PerformanceTest() throws Exception {
         // Mock 설정
+        when(caRepository.findById(testCaId))
+                .thenReturn(Optional.of(new CaEntity(testCaId)));
         when(objectMapper.writeValueAsString(any(AccountKeyResponse.class)))
                 .thenReturn("{\"keyType\":\"EC\",\"curve\":\"P-256\"}");
         when(acmeAccountRepository.save(any(AcmeAccountEntity.class)))
@@ -309,6 +361,7 @@ class AccountKeyServiceTest {
         assertTrue(duration < 5000, "EC key generation and saving took too long: " + duration + "ms");
 
         // DB 저장 확인
+        verify(caRepository, times(1)).findById(testCaId);
         verify(objectMapper, times(1)).writeValueAsString(any(AccountKeyResponse.class));
         verify(acmeAccountRepository, times(1)).save(any(AcmeAccountEntity.class));
     }

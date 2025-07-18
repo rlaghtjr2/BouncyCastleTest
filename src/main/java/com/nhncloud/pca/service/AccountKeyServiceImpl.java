@@ -21,8 +21,10 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.nhncloud.pca.constant.KeyAlgorithm;
 import com.nhncloud.pca.constant.acme.AccountStatus;
+import com.nhncloud.pca.entity.CaEntity;
 import com.nhncloud.pca.entity.acme.AcmeAccountEntity;
 import com.nhncloud.pca.model.response.AccountKeyResponse;
+import com.nhncloud.pca.repository.CaRepository;
 import com.nhncloud.pca.repository.acme.AcmeAccountRepository;
 import com.nimbusds.jose.jwk.Curve;
 import com.nimbusds.jose.jwk.ECKey;
@@ -33,6 +35,9 @@ public class AccountKeyServiceImpl implements AccountKeyService {
 
     @Autowired
     private AcmeAccountRepository acmeAccountRepository;
+
+    @Autowired
+    private CaRepository caRepository;
 
     @Autowired
     private ObjectMapper objectMapper;
@@ -170,9 +175,13 @@ public class AccountKeyServiceImpl implements AccountKeyService {
             // AccountKeyResponse를 JSON 문자열로 변환
             String privateKeyJson = objectMapper.writeValueAsString(keyResponse);
 
+            // CaEntity 생성 (외래키 설정용)
+            CaEntity caEntity = caRepository.findById(caId)
+                    .orElseThrow(() -> new IllegalArgumentException("CA not found with ID: " + caId));
+
             // AcmeAccountEntity 생성 및 저장
             AcmeAccountEntity accountEntity = AcmeAccountEntity.builder()
-                    .caId(caId)
+                    .ca(caEntity)
                     .status(AccountStatus.VALID)
                     .privateKey(privateKeyJson)
                     .creationUser(creationUser)

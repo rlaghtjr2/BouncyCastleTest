@@ -7,6 +7,7 @@ import com.nhncloud.pca.constant.acme.AccountStatus;
 import com.nhncloud.pca.converter.AccountStatusConverter;
 import com.nhncloud.pca.converter.ContactInfoConverter;
 import com.nhncloud.pca.converter.ExternalAccountBindingConverter;
+import com.nhncloud.pca.entity.CaEntity;
 import com.nhncloud.pca.model.acme.ExternalAccountBinding;
 
 import jakarta.persistence.Column;
@@ -15,6 +16,8 @@ import jakarta.persistence.Entity;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
+import jakarta.persistence.JoinColumn;
+import jakarta.persistence.OneToOne;
 import jakarta.persistence.PrePersist;
 import jakarta.persistence.PreUpdate;
 import jakarta.persistence.Table;
@@ -35,8 +38,9 @@ public class AcmeAccountEntity {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @Column(name = "ca_id", nullable = false)
-    private Long caId;
+    @OneToOne
+    @JoinColumn(name = "ca_id", nullable = false)
+    private CaEntity ca;
 
     @Column(name = "status", nullable = false, length = 20)
     @Convert(converter = AccountStatusConverter.class)
