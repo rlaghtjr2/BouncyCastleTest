@@ -1,13 +1,14 @@
 package com.nhncloud.pca.interceptor;
 
 import java.io.IOException;
+import java.util.Map;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 import org.springframework.web.servlet.HandlerInterceptor;
 
+import com.nhncloud.pca.model.acme.JwsParseResult;
 import com.nhncloud.pca.store.NonceStore;
-import com.nhncloud.pca.util.JwsUtils;
 
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
@@ -43,15 +44,16 @@ public class NonceValidationInterceptor implements HandlerInterceptor {
 
         try {
             // JwsValidationInterceptor에서 설정한 결과를 가져오기
-            JwsUtils.JwsParseResult result = (JwsUtils.JwsParseResult) request.getAttribute("jwsParseResult");
+            JwsParseResult result = (JwsParseResult) request.getAttribute("jwsParseResult");
 
             // JWS 파싱 결과가 없으면 이전 인터셉터에서 처리되지 않은 요청
             if (result == null) {
                 return true;
             }
 
-            // nonce 검증
-            String nonce = (String) result.protectedHeader.get("nonce");
+            // Nonce 검증
+            Map<String, Object> protectedHeader = result.getProtectedHeader();
+            String nonce = (String) protectedHeader.get("nonce");
             if (nonce == null) {
                 response.setStatus(HttpServletResponse.SC_BAD_REQUEST);
                 response.setContentType("application/json");

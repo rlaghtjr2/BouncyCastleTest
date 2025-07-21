@@ -8,6 +8,7 @@ import java.util.Map;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.nhncloud.pca.model.acme.JwsParseResult;
 import com.nhncloud.pca.model.acme.JwsRequest;
 import com.nhncloud.pca.store.AccountStore;
 import com.nimbusds.jose.JOSEException;
@@ -19,18 +20,6 @@ import com.nimbusds.jose.util.Base64URL;
 public class JwsUtils {
 
     private static final ObjectMapper mapper = new ObjectMapper();
-
-    public static class JwsParseResult {
-        public final Map<String, Object> protectedHeader;
-        public final Map<String, Object> payload;
-        public final RSAKey accountKey;
-
-        public JwsParseResult(Map<String, Object> protectedHeader, Map<String, Object> payload, RSAKey accountKey) {
-            this.protectedHeader = protectedHeader;
-            this.payload = payload;
-            this.accountKey = accountKey;
-        }
-    }
 
     public static JwsParseResult parseAndVerifyJws(JwsRequest jwsRequest, AccountStore accountStore) {
         try {
@@ -59,7 +48,7 @@ public class JwsUtils {
             RSAKey jwk;
             if (protectedMap.containsKey("jwk")) {
                 Map<String, Object> jwkMap = (Map<String, Object>) protectedMap.get("jwk");
-                jwk = RSAKey.parse(jwkMap);
+                jwk = parseAndValidateJwk(jwkMap);
             } else if (protectedMap.containsKey("kid")) {
                 String kid = (String) protectedMap.get("kid");
                 jwk = accountStore.getKeyByKid(kid);
@@ -90,6 +79,64 @@ public class JwsUtils {
             throw new RuntimeException("Failed to parse JWK: " + e.getMessage(), e);
         } catch (JOSEException e) {
             throw new RuntimeException("JWS verification failed: " + e.getMessage(), e);
+        }
+    }
+
+    /**
+     * JWK Map에서 RSA Public Key만 추출하여 안전하게 파싱
+     * Private Key 정보는 보안상 제거
+     */
+    private static RSAKey parseAndValidateJwk(Map<String, Object> jwkMap) {
+        try {
+            // 1. Key Type 검증
+            String keyType = (String) jwkMap.get("kty");
+            if (!"RSA".equals(keyType)) {
+                throw new IllegalArgumentException("Only RSA keys are supported, got: " + keyType);
+            }
+
+            // 2. 필수 RSA Public Key 파라미터 검증
+            String modulus = (String) jwkMap.get("n");
+            String exponent = (String) jwkMap.get("e");
+
+            if (modulus == null || modulus.trim().isEmpty()) {
+                throw new IllegalArgumentException("RSA modulus (n) is required");
+            }
+            if (exponent == null || exponent.trim().isEmpty()) {
+                throw new IllegalArgumentException("RSA public exponent (e) is required");
+            }
+
+            // 3. Public Key만 포함하는 새로운 JWK Map 생성 (Private Key 정보 제거)
+            Map<String, Object> publicOnlyJwk = new java.util.HashMap<>();
+            publicOnlyJwk.put("kty", keyType);
+            publicOnlyJwk.put("n", modulus);
+            publicOnlyJwk.put("e", exponent);
+
+            // 4. 선택적 파라미터들도 추가 (Public Key 관련만)
+            if (jwkMap.containsKey("alg")) {
+                publicOnlyJwk.put("alg", jwkMap.get("alg"));
+            }
+            if (jwkMap.containsKey("use")) {
+                publicOnlyJwk.put("use", jwkMap.get("use"));
+            }
+            if (jwkMap.containsKey("kid")) {
+                publicOnlyJwk.put("kid", jwkMap.get("kid"));
+            }
+
+            // 5. RSAKey 생성 및 반환
+            RSAKey rsaKey = RSAKey.parse(publicOnlyJwk);
+
+            // 6. Key 크기 검증 (최소 2048비트)
+            int keySize = rsaKey.toRSAPublicKey().getModulus().bitLength();
+            if (keySize < 2048) {
+                throw new IllegalArgumentException("RSA key size must be at least 2048 bits, got: " + keySize);
+            }
+
+            return rsaKey;
+
+        } catch (ParseException e) {
+            throw new RuntimeException("Failed to parse RSA JWK: " + e.getMessage(), e);
+        } catch (Exception e) {
+            throw new RuntimeException("Failed to validate JWK: " + e.getMessage(), e);
         }
     }
 }

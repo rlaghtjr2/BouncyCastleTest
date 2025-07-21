@@ -27,6 +27,7 @@ import com.nhncloud.pca.model.acme.CertificateResult;
 import com.nhncloud.pca.model.acme.Directory;
 import com.nhncloud.pca.model.acme.FinalizeResult;
 import com.nhncloud.pca.model.acme.Identifier;
+import com.nhncloud.pca.model.acme.JwsParseResult;
 import com.nhncloud.pca.model.acme.JwsRequest;
 import com.nhncloud.pca.model.acme.account.AccountCreationResult;
 import com.nhncloud.pca.model.acme.authorization.Authorization;
@@ -44,7 +45,6 @@ import com.nhncloud.pca.store.NonceStore;
 import com.nhncloud.pca.store.OrderStore;
 import com.nhncloud.pca.util.BouncyCastleUtil;
 import com.nhncloud.pca.util.CertificateUtil;
-import com.nhncloud.pca.util.JwsUtils;
 import com.nimbusds.jose.jwk.RSAKey;
 
 import jakarta.servlet.http.HttpServletRequest;
@@ -75,10 +75,10 @@ public class AcmeServiceImpl implements AcmeService {
     @Override
     public AccountCreationResult createAccount(JwsRequest jwsRequest, HttpServletRequest httpRequest) {
         // Interceptor에서 이미 JWS 파싱 및 nonce 검증 완료
-        JwsUtils.JwsParseResult result = (JwsUtils.JwsParseResult) httpRequest.getAttribute("jwsParseResult");
+        JwsParseResult result = (JwsParseResult) httpRequest.getAttribute("jwsParseResult");
 
-        Map<String, Object> payloadMap = result.payload;
-        RSAKey jwk = result.accountKey;
+        Map<String, Object> payloadMap = result.getPayload();
+        RSAKey accountKey = result.getAccountKey();
 
         // 2. 새로운 계정 ID 및 URL 생성
         String accountId = UUID.randomUUID().toString();
@@ -86,7 +86,7 @@ public class AcmeServiceImpl implements AcmeService {
         String accountUrl = baseUrl + "/acme/acct/" + accountId;
 
         // 3. 계정 키 저장
-        accountStore.saveAccount(accountUrl, jwk);
+        accountStore.saveAccount(accountUrl, accountKey);
 
         // 4. 응답 객체 생성
         String replayNonce = nonceStore.generateNonce();
@@ -102,10 +102,10 @@ public class AcmeServiceImpl implements AcmeService {
     @Override
     public OrderCreationResult createOrder(JwsRequest jwsRequest, String baseUrl, HttpServletRequest httpRequest) {
         // Interceptor에서 이미 JWS 파싱 및 nonce 검증 완료
-        JwsUtils.JwsParseResult result = (JwsUtils.JwsParseResult) httpRequest.getAttribute("jwsParseResult");
+        JwsParseResult result = (JwsParseResult) httpRequest.getAttribute("jwsParseResult");
 
         // identifiers 파싱
-        Map<String, Object> payloadMap = result.payload;
+        Map<String, Object> payloadMap = result.getPayload();
         List<Identifier> identifiers = new ObjectMapper().convertValue(
             payloadMap.get("identifiers"), new TypeReference<List<Identifier>>() {
             }
@@ -127,7 +127,7 @@ public class AcmeServiceImpl implements AcmeService {
             .order(order)
             .authzs(authzs)
             .replayNonce(replayNonce)
-            .originalNonce(result.protectedHeader.get("nonce").toString())
+            .originalNonce(result.getProtectedHeader().get("nonce").toString())
             .build();
     }
 
@@ -172,7 +172,7 @@ public class AcmeServiceImpl implements AcmeService {
     @Override
     public ChallengeResult triggerChallenge(String id, JwsRequest jwsRequest, String baseUrl, HttpServletRequest httpRequest) {
         // Interceptor에서 이미 JWS 파싱 및 nonce 검증 완료
-        JwsUtils.JwsParseResult result = (JwsUtils.JwsParseResult) httpRequest.getAttribute("jwsParseResult");
+        JwsParseResult result = (JwsParseResult) httpRequest.getAttribute("jwsParseResult");
 
         Challenge challenge = challengeStore.getChallenge(id);
         if (challenge == null) {
@@ -202,9 +202,9 @@ public class AcmeServiceImpl implements AcmeService {
     @Override
     public FinalizeResult finalizeOrder(String orderId, JwsRequest jwsRequest, HttpServletRequest httpRequest) {
         // Interceptor에서 이미 JWS 파싱 및 nonce 검증 완료
-        JwsUtils.JwsParseResult result = (JwsUtils.JwsParseResult) httpRequest.getAttribute("jwsParseResult");
+        JwsParseResult result = (JwsParseResult) httpRequest.getAttribute("jwsParseResult");
 
-        Map<String, Object> payloadMap = result.payload;
+        Map<String, Object> payloadMap = result.getPayload();
 
         // 2. CSR 디코딩
         String csrBase64Url = (String) payloadMap.get("csr");

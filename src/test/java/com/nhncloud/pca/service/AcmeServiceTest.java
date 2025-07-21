@@ -1,5 +1,14 @@
 package com.nhncloud.pca.service;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyList;
+import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.when;
+
 import java.math.BigInteger;
 import java.security.KeyPair;
 import java.security.KeyPairGenerator;
@@ -9,6 +18,7 @@ import java.time.LocalDateTime;
 import java.util.Base64;
 import java.util.List;
 import java.util.Map;
+
 import javax.security.auth.x500.X500Principal;
 
 import org.bouncycastle.asn1.x500.X500Name;
@@ -39,6 +49,7 @@ import com.nhncloud.pca.model.acme.CertificateResult;
 import com.nhncloud.pca.model.acme.Directory;
 import com.nhncloud.pca.model.acme.FinalizeResult;
 import com.nhncloud.pca.model.acme.Identifier;
+import com.nhncloud.pca.model.acme.JwsParseResult;
 import com.nhncloud.pca.model.acme.JwsRequest;
 import com.nhncloud.pca.model.acme.account.AccountCreationResult;
 import com.nhncloud.pca.model.acme.authorization.Authorization;
@@ -53,18 +64,8 @@ import com.nhncloud.pca.store.CertStore;
 import com.nhncloud.pca.store.ChallengeStore;
 import com.nhncloud.pca.store.NonceStore;
 import com.nhncloud.pca.store.OrderStore;
-import com.nhncloud.pca.util.JwsUtils;
 import com.nimbusds.jose.jwk.RSAKey;
 import com.nimbusds.jose.util.Base64URL;
-
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertNotNull;
-import static org.junit.jupiter.api.Assertions.assertThrows;
-import static org.junit.jupiter.api.Assertions.assertTrue;
-import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.anyList;
-import static org.mockito.ArgumentMatchers.eq;
-import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
 public class AcmeServiceTest {
@@ -143,7 +144,7 @@ public class AcmeServiceTest {
             .keyID("mock-key-id")
             .build();
 
-        JwsUtils.JwsParseResult mockResult = new JwsUtils.JwsParseResult(protectedHeader, payload, accountKey);
+        JwsParseResult mockResult = new JwsParseResult(protectedHeader, payload, accountKey);
 
         // 6. Mock HttpServletRequest attribute 설정
         mockRequest.setAttribute("jwsParseResult", mockResult);
@@ -173,7 +174,7 @@ public class AcmeServiceTest {
             .keyID("mock-key-id")
             .build();
 
-        JwsUtils.JwsParseResult mockResult = new JwsUtils.JwsParseResult(protectedHeader, payload, mockKey);
+        JwsParseResult mockResult = new JwsParseResult(protectedHeader, payload, mockKey);
 
         // ----- nonceStore 동작 정의 -----
         when(nonceStore.generateNonce()).thenReturn("new-nonce");
@@ -292,7 +293,7 @@ public class AcmeServiceTest {
             .keyID("mock-key-id")
             .build();
 
-        JwsUtils.JwsParseResult mockResult = new JwsUtils.JwsParseResult(protectedHeader, payload, mockKey);
+        JwsParseResult mockResult = new JwsParseResult(protectedHeader, payload, mockKey);
 
         // ----- Challenge 구성 -----
         Challenge challenge = Challenge.builder()
@@ -343,7 +344,7 @@ public class AcmeServiceTest {
             .keyID("mock-key-id")
             .build();
 
-        JwsUtils.JwsParseResult mockResult = new JwsUtils.JwsParseResult(protectedHeader, payload, mockKey);
+        JwsParseResult mockResult = new JwsParseResult(protectedHeader, payload, mockKey);
 
         // ----- Order 구성 -----
         Order order = Order.builder()

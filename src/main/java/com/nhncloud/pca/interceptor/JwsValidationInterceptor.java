@@ -7,6 +7,7 @@ import org.springframework.stereotype.Component;
 import org.springframework.web.servlet.HandlerInterceptor;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.nhncloud.pca.model.acme.JwsParseResult;
 import com.nhncloud.pca.model.acme.JwsRequest;
 import com.nhncloud.pca.store.AccountStore;
 import com.nhncloud.pca.util.JwsUtils;
@@ -96,7 +97,7 @@ public class JwsValidationInterceptor implements HandlerInterceptor {
     private boolean processJwsValidation(JwsRequest jwsRequest, HttpServletRequest request, HttpServletResponse response) throws IOException {
         try {
             // JWS 파싱 및 토큰 검증 (서명 검증)
-            JwsUtils.JwsParseResult result = JwsUtils.parseAndVerifyJws(jwsRequest, accountStore);
+            JwsParseResult result = JwsUtils.parseAndVerifyJws(jwsRequest, accountStore);
 
             // 결과를 request attribute에 저장 (다음 인터셉터에서 사용)
             request.setAttribute("jwsParseResult", result);
