@@ -1,8 +1,5 @@
 package com.nhncloud.pca.store;
 
-import java.util.Map;
-import java.util.concurrent.ConcurrentHashMap;
-
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 
@@ -16,32 +13,19 @@ import com.nimbusds.jose.jwk.RSAKey;
 @Component
 public class AccountStore {
 
-    private final Map<String, RSAKey> accountKeys = new ConcurrentHashMap<>();
-
     @Autowired
     private AcmeAccountRepository acmeAccountRepository;
 
     @Autowired
     private ObjectMapper objectMapper;
 
-    // 계정 생성 시 공개키 저장 (accountUrl = kid 역할) - 메모리 기반
-    public void saveAccount(String accountUrl, RSAKey jwk) {
-        accountKeys.put(accountUrl, jwk);
-    }
-
-    // kid로 공개키 조회 - DB 기반
+    // kid로 공개키 조회 - DB 기반만 사용
     public RSAKey getKeyByKid(String kid) {
         try {
-            // 1. 먼저 메모리에서 조회 (기존 메모리 기반 호환성)
-            RSAKey cachedKey = accountKeys.get(kid);
-            if (cachedKey != null) {
-                return cachedKey;
-            }
-
-            // 2. kid URL에서 account id 추출 (예: https://localhost:8443/acme/acct/3 -> 3)
+            // 1. kid URL에서 account id 추출 (예: https://localhost:8443/acme/acct/3 -> 3)
             Long accountId = extractAccountIdFromKid(kid);
 
-            // 3. DB에서 AcmeAccountEntity 조회
+            // 2. DB에서 AcmeAccountEntity 조회
             AcmeAccountEntity accountEntity = acmeAccountRepository.findById(accountId)
                     .orElse(null);
 
@@ -49,21 +33,18 @@ public class AccountStore {
                 return null;
             }
 
-            // 4. private_key(JSON 형태)를 AccountKeyResponse로 변환
+            // 3. private_key(JSON 형태)를 AccountKeyResponse로 변환
             AccountKeyResponse keyResponse = objectMapper.readValue(
                     accountEntity.getPrivateKey(), AccountKeyResponse.class);
 
-            // 5. AccountKeyResponse를 RSAKey로 변환
+            // 4. AccountKeyResponse를 RSAKey로 변환
             RSAKey rsaKey = convertToRSAKey(keyResponse);
-
-            // 6. 메모리에 캐시하여 다음 조회 시 빠르게 반환
-            accountKeys.put(kid, rsaKey);
 
             return rsaKey;
 
         } catch (NumberFormatException e) {
-            // kid가 숫자가 아닌 경우 메모리에서만 조회
-            return accountKeys.get(kid);
+            // kid가 숫자가 아닌 경우 처리 불가
+            return null;
         } catch (JsonProcessingException e) {
             throw new RuntimeException("Failed to parse private key JSON: " + e.getMessage(), e);
         } catch (Exception e) {

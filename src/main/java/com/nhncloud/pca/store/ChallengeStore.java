@@ -1,38 +1,94 @@
 package com.nhncloud.pca.store;
 
-import java.util.Map;
+import java.util.Optional;
 import java.util.UUID;
-import java.util.concurrent.ConcurrentHashMap;
 
 import org.springframework.stereotype.Component;
 
 import com.nhncloud.pca.constant.acme.ChallengeStatus;
+import com.nhncloud.pca.constant.acme.ChallengeType;
+import com.nhncloud.pca.entity.acme.AcmeChallengeEntity;
 import com.nhncloud.pca.model.acme.challenge.Challenge;
+import com.nhncloud.pca.repository.acme.AcmeChallengeRepository;
 
 @Component
 public class ChallengeStore {
-    private final Map<String, Challenge> challenges = new ConcurrentHashMap<>();
+    private final AcmeChallengeRepository acmeChallengeRepository;
 
-    public Challenge createChallenge(String baseUrl) {
-        String challengeId = UUID.randomUUID().toString();
-        String token = UUID.randomUUID().toString();
-        Challenge challenge = Challenge.builder()
-            .id(challengeId)
-            .token(token)
-            .url(baseUrl + "/acme/challenge/" + challengeId)
-            .build();
-        challenges.put(challengeId, challenge);
-        return challenge;
+    public ChallengeStore(AcmeChallengeRepository acmeChallengeRepository) {
+        this.acmeChallengeRepository = acmeChallengeRepository;
+    }
+
+    /**
+     * Challenge를 DB에 저장하는 메서드
+     */
+    public Challenge createChallengeWithDatabase(Long authorizationId, String baseUrl) {
+        try {
+            String token = UUID.randomUUID().toString();
+
+            // 1. DB에 Challenge Entity 저장
+            AcmeChallengeEntity challengeEntity = AcmeChallengeEntity.builder()
+                    .authorizationId(authorizationId)
+                    .type(ChallengeType.HTTP_01) // 기본 타입
+                    .status(ChallengeStatus.PENDING)
+                    .url(baseUrl + "/acme/challenge/") // 임시 URL, 저장 후 업데이트
+                    .token(token)
+                    .build();
+
+            AcmeChallengeEntity savedChallenge = acmeChallengeRepository.save(challengeEntity);
+
+            // 2. DB에서 생성된 ID로 URL 업데이트
+            savedChallenge.setUrl(baseUrl + "/acme/challenge/" + savedChallenge.getId());
+            acmeChallengeRepository.save(savedChallenge);
+
+            // 3. Challenge 객체 생성 (기존 로직과 호환성 유지)
+            Challenge challenge = Challenge.builder()
+                    .id(savedChallenge.getId().toString())
+                    .type(savedChallenge.getType())
+                    .status(savedChallenge.getStatus())
+                    .url(savedChallenge.getUrl())
+                    .token(savedChallenge.getToken())
+                    .build();
+
+            return challenge;
+
+        } catch (Exception e) {
+            throw new RuntimeException("Failed to save challenge to database: " + e.getMessage(), e);
+        }
     }
 
     public Challenge getChallenge(String id) {
-        return challenges.get(id);
+        try {
+            Long challengeId = Long.parseLong(id);
+            Optional<AcmeChallengeEntity> challengeEntity = acmeChallengeRepository.findById(challengeId);
+
+            if (challengeEntity.isPresent()) {
+                AcmeChallengeEntity entity = challengeEntity.get();
+                return Challenge.builder()
+                    .id(entity.getId().toString())
+                    .type(entity.getType())
+                    .status(entity.getStatus())
+                    .url(entity.getUrl())
+                    .token(entity.getToken())
+                    .build();
+            }
+            return null;
+        } catch (NumberFormatException e) {
+            return null;
+        }
     }
 
     public void markValid(String id) {
-        Challenge challenge = challenges.get(id);
-        if (challenge != null) {
-            challenge.getStatus().equals(ChallengeStatus.VALID);
+        try {
+            Long challengeId = Long.parseLong(id);
+            Optional<AcmeChallengeEntity> challengeEntity = acmeChallengeRepository.findById(challengeId);
+            if (challengeEntity.isPresent()) {
+                AcmeChallengeEntity entity = challengeEntity.get();
+                entity.setStatus(ChallengeStatus.VALID);
+                acmeChallengeRepository.save(entity);
+            }
+        } catch (NumberFormatException e) {
+            // 무시
         }
     }
 }

@@ -85,8 +85,7 @@ public class AcmeServiceImpl implements AcmeService {
         String baseUrl = httpRequest.getScheme() + "://" + httpRequest.getServerName() + ":" + httpRequest.getServerPort();
         String accountUrl = baseUrl + "/acme/acct/" + accountId;
 
-        // 3. 계정 키 저장
-        accountStore.saveAccount(accountUrl, accountKey);
+        // 3. 계정 키는 별도 서비스에서 DB에 저장됨 (메모리 저장 제거)
 
         // 4. 응답 객체 생성
         String replayNonce = nonceStore.generateNonce();
@@ -111,21 +110,37 @@ public class AcmeServiceImpl implements AcmeService {
             }
         );
 
-        // Authz + Challenge 생성
-        List<Authorization> authzs = new ArrayList<>();
+        // kid에서 account ID 추출 (kid는 URL 형태: https://localhost:8443/acme/acct/3)
+        String kid = (String) result.getProtectedHeader().get("kid");
+        Long accountId = extractAccountIdFromKid(kid);
+
+        // 1단계: Order를 DB에 저장
+        Order order = orderStore.createOrderWithDatabase(accountId, identifiers, new ArrayList<>(), baseUrl);
+
+        // 2단계: Identifier들을 DB에 저장 (Order와 연결)
+        orderStore.saveIdentifiersForOrder(Long.parseLong(order.getId()), identifiers);
+
+        // 3단계: Authorization을 DB에 저장 후 Challenge도 DB에 저장
+        List<Authorization> savedAuthzs = new ArrayList<>();
         for (Identifier identifier : identifiers) {
-            Challenge challenge = challengeStore.createChallenge(baseUrl);
-            Authorization authz = authorizationStore.createAuthorization(identifier, List.of(challenge));
-            authzs.add(authz);
+            // Authorization을 DB에 저장 (빈 Challenge 목록으로)
+            Authorization authz = authorizationStore.createAuthorizationWithDatabase(
+                identifier, new ArrayList<>());
+
+            // Challenge를 DB에 저장 (Authorization ID와 연결)
+            Challenge challenge = challengeStore.createChallengeWithDatabase(
+                Long.parseLong(authz.getId()), baseUrl);
+
+            // Authorization에 Challenge 추가
+            authz.setChallenges(List.of(challenge));
+            savedAuthzs.add(authz);
         }
 
-        // Order 생성
-        Order order = orderStore.createOrder(identifiers, authzs, baseUrl);
         String replayNonce = nonceStore.generateNonce();
 
         return OrderCreationResult.builder()
             .order(order)
-            .authzs(authzs)
+            .authzs(savedAuthzs) // DB에 저장된 Authorization 사용
             .replayNonce(replayNonce)
             .originalNonce(result.getProtectedHeader().get("nonce").toString())
             .build();
@@ -301,5 +316,49 @@ public class AcmeServiceImpl implements AcmeService {
             .pemChain(writer.toString())
             .replayNonce(nonceStore.generateNonce())
             .build();
+    }
+
+    /**
+     * kid URL에서 account id 추출
+     * 예: https://localhost:8443/acme/acct/3 -> 3
+     */
+    private Long extractAccountIdFromKid(String kid) {
+        if (kid == null) {
+            throw new IllegalArgumentException("kid is required");
+        }
+
+        try {
+            // kid가 숫자인 경우 (기존 방식 호환)
+            return Long.parseLong(kid);
+        } catch (NumberFormatException e) {
+            // kid가 URL인 경우 마지막 부분에서 account id 추출
+            if (kid.contains("/acct/")) {
+                String[] parts = kid.split("/acct/");
+                if (parts.length >= 2) {
+                    String accountIdStr = parts[1];
+                    // 추가 경로나 쿼리 파라미터가 있는 경우 제거
+                    if (accountIdStr.contains("/")) {
+                        accountIdStr = accountIdStr.substring(0, accountIdStr.indexOf("/"));
+                    }
+                    if (accountIdStr.contains("?")) {
+                        accountIdStr = accountIdStr.substring(0, accountIdStr.indexOf("?"));
+                    }
+                    return Long.parseLong(accountIdStr);
+                }
+            }
+
+            // URL에서 마지막 숫자 추출 (일반적인 경우)
+            String[] urlParts = kid.split("/");
+            if (urlParts.length > 0) {
+                String lastPart = urlParts[urlParts.length - 1];
+                // 쿼리 파라미터가 있는 경우 제거
+                if (lastPart.contains("?")) {
+                    lastPart = lastPart.substring(0, lastPart.indexOf("?"));
+                }
+                return Long.parseLong(lastPart);
+            }
+
+            throw new IllegalArgumentException("Cannot extract account id from kid: " + kid);
+        }
     }
 }

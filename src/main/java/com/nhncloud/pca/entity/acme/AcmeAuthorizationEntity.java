@@ -31,13 +31,10 @@ public class AcmeAuthorizationEntity {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @Column(name = "order_id", nullable = false)
-    private Long orderId;
-
     @Column(name = "identifier_id", nullable = false)
     private Long identifierId;
 
-    @Column(name = "status", nullable = false, length = 20)
+    @Column(name = "status", nullable = false, length = 64)
     @Convert(converter = AuthorizationStatusConverter.class)
     private AuthorizationStatus status;
 
@@ -45,16 +42,11 @@ public class AcmeAuthorizationEntity {
     private LocalDateTime expires;
 
     @Column(name = "wildcard")
+    @Builder.Default
     private Boolean wildcard = false;
-
-    @Column(name = "creation_user", nullable = false, length = 100)
-    private String creationUser;
 
     @Column(name = "creation_datetime", nullable = false)
     private LocalDateTime creationDatetime;
-
-    @Column(name = "last_change_user", nullable = false, length = 100)
-    private String lastChangeUser;
 
     @Column(name = "last_change_datetime", nullable = false)
     private LocalDateTime lastChangeDatetime;

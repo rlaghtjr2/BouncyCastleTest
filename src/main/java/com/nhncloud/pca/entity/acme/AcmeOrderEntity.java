@@ -1,16 +1,19 @@
 package com.nhncloud.pca.entity.acme;
 
 import java.time.LocalDateTime;
+import java.util.List;
 
 import com.nhncloud.pca.constant.acme.OrderStatus;
 import com.nhncloud.pca.converter.OrderStatusConverter;
 
+import jakarta.persistence.CascadeType;
 import jakarta.persistence.Column;
 import jakarta.persistence.Convert;
 import jakarta.persistence.Entity;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
+import jakarta.persistence.OneToMany;
 import jakarta.persistence.PrePersist;
 import jakarta.persistence.PreUpdate;
 import jakarta.persistence.Table;
@@ -31,10 +34,13 @@ public class AcmeOrderEntity {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @Column(name = "account_id", nullable = false)
+    @Column(name = "acme_account_id", nullable = false)
     private Long accountId;
 
-    @Column(name = "status", nullable = false, length = 20)
+    @Column(name = "certificate_id", length = 255)
+    private String certificateId;
+
+    @Column(name = "status", nullable = false, length = 64)
     @Convert(converter = OrderStatusConverter.class)
     private OrderStatus status;
 
@@ -47,20 +53,12 @@ public class AcmeOrderEntity {
     @Column(name = "not_after")
     private LocalDateTime notAfter;
 
-    @Column(name = "finalize_url", length = 512)
-    private String finalizeUrl;
-
-    @Column(name = "certificate_url", length = 512)
-    private String certificateUrl;
-
-    @Column(name = "creation_user", nullable = false, length = 100)
-    private String creationUser;
+    // 1:N 관계 - 하나의 Order는 여러 Identifier를 가질 수 있음
+    @OneToMany(mappedBy = "order", cascade = CascadeType.ALL, orphanRemoval = true)
+    private List<AcmeIdentifierEntity> identifiers;
 
     @Column(name = "creation_datetime", nullable = false)
     private LocalDateTime creationDatetime;
-
-    @Column(name = "last_change_user", nullable = false, length = 100)
-    private String lastChangeUser;
 
     @Column(name = "last_change_datetime", nullable = false)
     private LocalDateTime lastChangeDatetime;
