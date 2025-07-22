@@ -22,6 +22,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.nhncloud.pca.constant.acme.AuthorizationStatus;
 import com.nhncloud.pca.constant.acme.OrderStatus;
 import com.nhncloud.pca.constant.acme.ProblemType;
+import com.nhncloud.pca.entity.acme.AcmeIdentifierEntity;
 import com.nhncloud.pca.exception.AcmeProblemException;
 import com.nhncloud.pca.model.acme.CertificateResult;
 import com.nhncloud.pca.model.acme.Directory;
@@ -117,21 +118,23 @@ public class AcmeServiceImpl implements AcmeService {
         // 1단계: Order를 DB에 저장
         Order order = orderStore.createOrderWithDatabase(accountId, identifiers, new ArrayList<>(), baseUrl);
 
-        // 2단계: Identifier들을 DB에 저장 (Order와 연결)
-        orderStore.saveIdentifiersForOrder(Long.parseLong(order.getId()), identifiers);
+        // 2단계: Identifier들을 DB에 저장 (Order와 연결) - 저장된 Entity들 반환받음
+        List<AcmeIdentifierEntity> savedIdentifierEntities =
+            orderStore.saveIdentifiersForOrder(Long.parseLong(order.getId()), identifiers);
 
-        // 3단계: Authorization을 DB에 저장 후 Challenge도 DB에 저장
+        // 3단계: Authorization을 DB에 저장 후 Challenge도 DB에 저장 (저장된 Identifier Entity 활용)
         List<Authorization> savedAuthzs = new ArrayList<>();
-        for (Identifier identifier : identifiers) {
-            // Authorization을 DB에 저장 (빈 Challenge 목록으로)
-            Authorization authz = authorizationStore.createAuthorizationWithDatabase(
-                identifier, new ArrayList<>());
+        for (AcmeIdentifierEntity identifierEntity : savedIdentifierEntities) {
+            // Authorization을 DB에 저장 (저장된 Identifier Entity와 직접 연결) - Entity도 함께 받음
+            AuthorizationStore.AuthorizationWithEntity authzWithEntity =
+                authorizationStore.createAuthorizationWithIdentifierEntity(identifierEntity, new ArrayList<>());
 
-            // Challenge를 DB에 저장 (Authorization ID와 연결)
-            Challenge challenge = challengeStore.createChallengeWithDatabase(
-                Long.parseLong(authz.getId()), baseUrl);
+            // Challenge를 DB에 저장 (저장된 Authorization Entity와 직접 연결)
+            Challenge challenge = challengeStore.createChallengeWithAuthorizationEntity(
+                authzWithEntity.getEntity(), baseUrl);
 
             // Authorization에 Challenge 추가
+            Authorization authz = authzWithEntity.getAuthorization();
             authz.setChallenges(List.of(challenge));
             savedAuthzs.add(authz);
         }

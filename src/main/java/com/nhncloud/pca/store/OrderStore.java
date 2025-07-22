@@ -1,6 +1,7 @@
 package com.nhncloud.pca.store;
 
 import java.time.LocalDateTime;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 import java.util.stream.Collectors;
@@ -10,11 +11,13 @@ import org.springframework.stereotype.Component;
 
 import com.nhncloud.pca.constant.acme.AuthorizationStatus;
 import com.nhncloud.pca.constant.acme.OrderStatus;
+import com.nhncloud.pca.entity.acme.AcmeAuthorizationEntity;
 import com.nhncloud.pca.entity.acme.AcmeIdentifierEntity;
 import com.nhncloud.pca.entity.acme.AcmeOrderEntity;
 import com.nhncloud.pca.model.acme.Identifier;
 import com.nhncloud.pca.model.acme.authorization.Authorization;
 import com.nhncloud.pca.model.acme.order.Order;
+import com.nhncloud.pca.repository.acme.AcmeAuthorizationRepository;
 import com.nhncloud.pca.repository.acme.AcmeIdentifierRepository;
 import com.nhncloud.pca.repository.acme.AcmeOrderRepository;
 
@@ -23,17 +26,21 @@ public class OrderStore {
 
     private final AcmeOrderRepository acmeOrderRepository;
     private final AcmeIdentifierRepository acmeIdentifierRepository;
+    private final AcmeAuthorizationRepository acmeAuthorizationRepository;
 
-    public OrderStore(AcmeOrderRepository acmeOrderRepository, AcmeIdentifierRepository acmeIdentifierRepository) {
+    public OrderStore(AcmeOrderRepository acmeOrderRepository,
+                     AcmeIdentifierRepository acmeIdentifierRepository,
+                     AcmeAuthorizationRepository acmeAuthorizationRepository) {
         this.acmeOrderRepository = acmeOrderRepository;
         this.acmeIdentifierRepository = acmeIdentifierRepository;
+        this.acmeAuthorizationRepository = acmeAuthorizationRepository;
     }
 
     /**
      * Order를 DB에 저장하는 메서드 (Order만 저장)
      */
     public Order createOrderWithDatabase(Long accountId, List<Identifier> identifiers,
-                                       List<Authorization> authorizations, String baseUrl) {
+                                         List<Authorization> authorizations, String baseUrl) {
         try {
             // 1. DB에 Order Entity 저장
             AcmeOrderEntity orderEntity = AcmeOrderEntity.builder()
@@ -45,7 +52,7 @@ public class OrderStore {
             AcmeOrderEntity savedOrder = acmeOrderRepository.save(orderEntity);
 
             // 2. Order 객체 생성 (finalize URL은 동적으로 생성)
-            String finalizeUrl = baseUrl + "/acme/finalize/" + savedOrder.getId();
+            String finalizeUrl = baseUrl + "/acme/order/" + savedOrder.getId() + "/finalize";
 
             Order order = Order.builder()
                 .id(savedOrder.getId().toString())
@@ -64,9 +71,9 @@ public class OrderStore {
     }
 
     /**
-     * 특정 Order에 Identifier들을 저장하는 메서드
+     * 특정 Order에 Identifier들을 저장하는 메서드 (저장된 Entity들 반환)
      */
-    public void saveIdentifiersForOrder(Long orderId, List<Identifier> identifiers) {
+    public List<AcmeIdentifierEntity> saveIdentifiersForOrder(Long orderId, List<Identifier> identifiers) {
         try {
             // Order Entity 조회
             Optional<AcmeOrderEntity> orderEntity = acmeOrderRepository.findById(orderId);
@@ -85,7 +92,8 @@ public class OrderStore {
                     .build())
                 .collect(Collectors.toList());
 
-            acmeIdentifierRepository.saveAll(identifierEntities);
+            List<AcmeIdentifierEntity> savedIdentifiers = acmeIdentifierRepository.saveAll(identifierEntities);
+            return savedIdentifiers; // 저장된 Entity들 반환
 
         } catch (Exception e) {
             throw new RuntimeException("Failed to save identifiers for order: " + e.getMessage(), e);
@@ -100,7 +108,7 @@ public class OrderStore {
             if (orderEntity.isPresent()) {
                 AcmeOrderEntity entity = orderEntity.get();
 
-                // Option 1: JPA 관계를 통해 조회 (Lazy Loading 활용)
+                // 1. JPA 관계를 통해 Identifier들 조회
                 List<Identifier> identifiers = entity.getIdentifiers().stream()
                     .map(identifierEntity -> Identifier.builder()
                         .type(identifierEntity.getType())
@@ -108,8 +116,34 @@ public class OrderStore {
                         .build())
                     .collect(Collectors.toList());
 
-                // Option 2: Repository를 통해 직접 조회 (기존 방식 유지 가능)
-                // List<AcmeIdentifierEntity> identifierEntities = acmeIdentifierRepository.findByOrderId(orderId);
+                // 2. 각 Identifier에 대해 연관된 Authorization 조회
+                List<Authorization> authorizations = new ArrayList<>();
+                for (AcmeIdentifierEntity identifierEntity : entity.getIdentifiers()) {
+                    Optional<AcmeAuthorizationEntity> authzEntity =
+                        acmeAuthorizationRepository.findByIdentifier(identifierEntity);
+
+                    if (authzEntity.isPresent()) {
+                        AcmeAuthorizationEntity authz = authzEntity.get();
+
+                        // Identifier 정보 생성
+                        Identifier identifier = Identifier.builder()
+                            .type(identifierEntity.getType())
+                            .value(identifierEntity.getValue())
+                            .build();
+
+                        // Authorization 객체 생성
+                        Authorization authorization = Authorization.builder()
+                            .id(authz.getId().toString())
+                            .identifier(identifier)
+                            .status(authz.getStatus())
+                            .expires(authz.getExpires())
+                            .wildcard(authz.getWildcard())
+                            .challenges(new ArrayList<>()) // Challenge는 필요시 별도 조회
+                            .build();
+
+                        authorizations.add(authorization);
+                    }
+                }
 
                 // 동적으로 finalize URL 생성
                 String finalizeUrl = "/acme/finalize/" + entity.getId();
@@ -118,6 +152,7 @@ public class OrderStore {
                     .id(entity.getId().toString())
                     .status(entity.getStatus())
                     .identifiers(identifiers) // JPA 관계를 통해 조회한 Identifier들
+                    .authorizations(authorizations) // JPA 관계를 통해 조회한 Authorization들
                     .expires(entity.getExpires())
                     .finalize(finalizeUrl)
                     .certificate(entity.getCertificateId() != null ? "/acme/certificate/" + entity.getCertificateId() : null)

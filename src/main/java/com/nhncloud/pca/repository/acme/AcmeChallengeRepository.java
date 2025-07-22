@@ -9,11 +9,22 @@ import org.springframework.stereotype.Repository;
 
 import com.nhncloud.pca.constant.acme.ChallengeStatus;
 import com.nhncloud.pca.constant.acme.ChallengeType;
+import com.nhncloud.pca.entity.acme.AcmeAuthorizationEntity;
 import com.nhncloud.pca.entity.acme.AcmeChallengeEntity;
 
 @Repository
 public interface AcmeChallengeRepository extends JpaRepository<AcmeChallengeEntity, Long> {
 
+    // Authorization Entity를 직접 사용하는 메서드들 (권장)
+    List<AcmeChallengeEntity> findByAuthorization(AcmeAuthorizationEntity authorization);
+
+    List<AcmeChallengeEntity> findByAuthorizationAndStatus(AcmeAuthorizationEntity authorization, ChallengeStatus status);
+
+    List<AcmeChallengeEntity> findByAuthorizationAndType(AcmeAuthorizationEntity authorization, ChallengeType type);
+
+    Optional<AcmeChallengeEntity> findByIdAndAuthorization(Long id, AcmeAuthorizationEntity authorization);
+
+    // 기존 authorizationId 기반 메서드들 (호환성을 위해 유지, JPA가 자동으로 authorization.id로 처리)
     List<AcmeChallengeEntity> findByAuthorizationId(Long authorizationId);
 
     List<AcmeChallengeEntity> findByAuthorizationIdAndStatus(Long authorizationId, ChallengeStatus status);
