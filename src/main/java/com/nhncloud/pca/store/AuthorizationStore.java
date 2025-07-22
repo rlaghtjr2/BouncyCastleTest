@@ -35,49 +35,7 @@ public class AuthorizationStore {
     }
 
     /**
-     * Authorization을 DB에 저장하는 메서드 (Identifier Entity 참조 사용)
-     */
-    public Authorization createAuthorizationWithDatabase(Identifier identifier, List<Challenge> challenges) {
-        try {
-            // 1. Identifier의 type과 value로 DB에서 해당 Entity 조회
-            List<AcmeIdentifierEntity> identifierEntities =
-                acmeIdentifierRepository.findByTypeAndValue(identifier.getType(), identifier.getValue());
-
-            if (identifierEntities.isEmpty()) {
-                throw new RuntimeException("Identifier not found in database: " + identifier.getType() + "=" + identifier.getValue());
-            }
-
-            // 가장 최근에 생성된 Identifier Entity 사용 (여러 개가 있을 경우)
-            AcmeIdentifierEntity identifierEntity = identifierEntities.get(identifierEntities.size() - 1);
-
-            // 2. DB에 Authorization Entity 저장 (Identifier Entity 참조 사용)
-            AcmeAuthorizationEntity authzEntity = AcmeAuthorizationEntity.builder()
-                    .identifier(identifierEntity) // Identifier Entity 직접 참조
-                    .status(AuthorizationStatus.PENDING)
-                    .expires(LocalDateTime.now().plusHours(1)) // 1시간 후 만료
-                    .build();
-
-            AcmeAuthorizationEntity savedAuthz = acmeAuthorizationRepository.save(authzEntity);
-
-            // 3. Authorization 객체 생성 (기존 로직과 호환성 유지)
-            Authorization authorization = Authorization.builder()
-                    .id(savedAuthz.getId().toString())
-                    .identifier(identifier)
-                    .status(savedAuthz.getStatus())
-                    .expires(savedAuthz.getExpires())
-                    .wildcard(savedAuthz.getWildcard())
-                    .challenges(challenges)
-                    .build();
-
-            return authorization;
-
-        } catch (Exception e) {
-            throw new RuntimeException("Failed to save authorization to database: " + e.getMessage(), e);
-        }
-    }
-
-    /**
-     * AcmeIdentifierEntity를 직접 받아서 Authorization을 생성하는 메서드 (더 명확한 방식)
+     * AcmeIdentifierEntity를 직접 받아서 Authorization을 생성하는 메서드 (권장)
      * 저장된 AcmeAuthorizationEntity도 함께 반환
      */
     public AuthorizationWithEntity createAuthorizationWithIdentifierEntity(AcmeIdentifierEntity identifierEntity,
@@ -197,20 +155,6 @@ public class AuthorizationStore {
             if (authzEntity.isPresent()) {
                 AcmeAuthorizationEntity entity = authzEntity.get();
                 entity.setStatus(AuthorizationStatus.VALID);
-                acmeAuthorizationRepository.save(entity);
-            }
-        } catch (NumberFormatException e) {
-            // 무시
-        }
-    }
-
-    public void markInvalid(String id) {
-        try {
-            Long authzId = Long.parseLong(id);
-            Optional<AcmeAuthorizationEntity> authzEntity = acmeAuthorizationRepository.findById(authzId);
-            if (authzEntity.isPresent()) {
-                AcmeAuthorizationEntity entity = authzEntity.get();
-                entity.setStatus(AuthorizationStatus.INVALID);
                 acmeAuthorizationRepository.save(entity);
             }
         } catch (NumberFormatException e) {

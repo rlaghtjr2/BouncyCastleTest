@@ -164,32 +164,6 @@ public class OrderStore {
         }
     }
 
-    /**
-     * 특정 Order에 속한 모든 Identifier들을 조회하는 메서드
-     */
-    public List<Identifier> getIdentifiersByOrderId(Long orderId) {
-        // Option 1: Repository를 통한 조회
-        List<AcmeIdentifierEntity> identifierEntities = acmeIdentifierRepository.findByOrderId(orderId);
-        return identifierEntities.stream()
-            .map(entity -> Identifier.builder()
-                .type(entity.getType())
-                .value(entity.getValue())
-                .build())
-            .collect(Collectors.toList());
-
-        // Option 2: Order Entity를 통한 조회 (더 JPA답게)
-        // Optional<AcmeOrderEntity> orderEntity = acmeOrderRepository.findById(orderId);
-        // if (orderEntity.isPresent()) {
-        //     return orderEntity.get().getIdentifiers().stream()
-        //         .map(entity -> Identifier.builder()
-        //             .type(entity.getType())
-        //             .value(entity.getValue())
-        //             .build())
-        //         .collect(Collectors.toList());
-        // }
-        // return List.of();
-    }
-
     public Order findOrderByAuthzId(String authzId) {
         // Authorization과 Order 간의 관계를 DB에서 조회해야 하는 경우
         // 현재는 메모리 기반이었으므로 단순히 null 반환
@@ -234,20 +208,6 @@ public class OrderStore {
         }
     }
 
-    public void markProcessing(String orderId) {
-        try {
-            Long id = Long.parseLong(orderId);
-            Optional<AcmeOrderEntity> orderEntity = acmeOrderRepository.findById(id);
-            if (orderEntity.isPresent()) {
-                AcmeOrderEntity entity = orderEntity.get();
-                entity.setStatus(OrderStatus.PROCESSING);
-                acmeOrderRepository.save(entity);
-            }
-        } catch (NumberFormatException e) {
-            // 무시
-        }
-    }
-
     public void finalizeOrder(String orderId, String certificateId, PKCS10CertificationRequest csr, String pemCertificate) {
         try {
             Long id = Long.parseLong(orderId);
@@ -260,33 +220,6 @@ public class OrderStore {
             }
         } catch (NumberFormatException e) {
             // 무시
-        }
-    }
-
-    public void markInvalid(String orderId) {
-        try {
-            Long id = Long.parseLong(orderId);
-            Optional<AcmeOrderEntity> orderEntity = acmeOrderRepository.findById(id);
-            if (orderEntity.isPresent()) {
-                AcmeOrderEntity entity = orderEntity.get();
-                entity.setStatus(OrderStatus.INVALID);
-                acmeOrderRepository.save(entity);
-            }
-        } catch (NumberFormatException e) {
-            // 무시
-        }
-    }
-
-    public String getPemCertificate(String orderId) {
-        try {
-            Long id = Long.parseLong(orderId);
-            Optional<AcmeOrderEntity> orderEntity = acmeOrderRepository.findById(id);
-            if (orderEntity.isPresent() && orderEntity.get().getCertificateId() != null) {
-                return "/acme/certificate/" + orderEntity.get().getCertificateId();
-            }
-            return null;
-        } catch (NumberFormatException e) {
-            return null;
         }
     }
 }

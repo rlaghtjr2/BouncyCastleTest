@@ -39,6 +39,7 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
+import org.mockito.MockitoAnnotations;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.mock.web.MockHttpServletRequest;
 
@@ -47,6 +48,8 @@ import com.nhncloud.pca.constant.acme.ChallengeStatus;
 import com.nhncloud.pca.constant.acme.ChallengeType;
 import com.nhncloud.pca.constant.acme.OrderStatus;
 import com.nhncloud.pca.constant.acme.ProblemType;
+import com.nhncloud.pca.entity.acme.AcmeAuthorizationEntity;
+import com.nhncloud.pca.entity.acme.AcmeIdentifierEntity;
 import com.nhncloud.pca.exception.AcmeProblemException;
 import com.nhncloud.pca.model.acme.CertificateResult;
 import com.nhncloud.pca.model.acme.Directory;
@@ -97,6 +100,7 @@ public class AcmeServiceTest {
     @BeforeEach
     public void setUp() {
         Security.addProvider(new BouncyCastleProvider());
+        MockitoAnnotations.openMocks(this); // MockitoAnnotations 추가
         service = new AcmeServiceImpl(nonceStore, accountStore, challengeStore, authorizationStore, orderStore, certStore);
     }
 
@@ -214,18 +218,43 @@ public class AcmeServiceTest {
 
         when(orderStore.createOrderWithDatabase(eq(123L), anyList(), anyList(), eq(baseUrl))).thenReturn(mockOrder);
 
-        // AuthorizationStore의 createAuthorizationWithDatabase Mock 설정
+        // Mock AcmeIdentifierEntity 생성
+        AcmeIdentifierEntity mockIdentifierEntity = AcmeIdentifierEntity.builder()
+            .id(1L)
+            .type("dns")
+            .value("example.com")
+            .build();
+
+        // OrderStore의 saveIdentifiersForOrder Mock 설정 (저장된 Entity들 반환)
+        when(orderStore.saveIdentifiersForOrder(eq(123L), anyList()))
+            .thenReturn(List.of(mockIdentifierEntity));
+
+        // AuthorizationStore의 createAuthorizationWithIdentifierEntity Mock 설정
         Authorization mockAuthzWithoutChallenge = Authorization.builder()
             .id("789")
             .identifier(identifier)
             .status(AuthorizationStatus.PENDING)
             .challenges(new ArrayList<>()) // 빈 목록
             .build();
-        when(authorizationStore.createAuthorizationWithDatabase(eq(identifier), anyList()))
-            .thenReturn(mockAuthzWithoutChallenge);
 
-        // ChallengeStore의 createChallengeWithDatabase Mock 설정
-        when(challengeStore.createChallengeWithDatabase(eq(789L), eq(baseUrl))).thenReturn(mockChallenge);
+        // Mock AcmeAuthorizationEntity 생성
+        AcmeAuthorizationEntity mockAuthzEntity = AcmeAuthorizationEntity.builder()
+            .id(789L)
+            .identifier(mockIdentifierEntity)
+            .status(AuthorizationStatus.PENDING)
+            .expires(LocalDateTime.now().plusHours(1))
+            .build();
+
+        // AuthorizationStore.AuthorizationWithEntity Mock 생성
+        AuthorizationStore.AuthorizationWithEntity mockAuthzWithEntity =
+            new AuthorizationStore.AuthorizationWithEntity(mockAuthzWithoutChallenge, mockAuthzEntity);
+
+        when(authorizationStore.createAuthorizationWithIdentifierEntity(eq(mockIdentifierEntity), anyList()))
+            .thenReturn(mockAuthzWithEntity);
+
+        // ChallengeStore의 createChallengeWithAuthorizationEntity Mock 설정
+        when(challengeStore.createChallengeWithAuthorizationEntity(eq(mockAuthzEntity), eq(baseUrl)))
+            .thenReturn(mockChallenge);
 
         // ----- Mock HttpServletRequest -----
         MockHttpServletRequest mockRequest = new MockHttpServletRequest();
@@ -238,10 +267,11 @@ public class AcmeServiceTest {
         assertEquals("123", result.getOrder().getId()); // DB에서 생성된 ID 사용
         assertEquals(1, result.getAuthzs().size());
 
-        // DB 저장 메서드들이 호출되었는지 검증
+        // DB 저장 메서드들이 호출되었는지 검증 (변경된 로직 반영)
         verify(orderStore, times(1)).createOrderWithDatabase(eq(123L), anyList(), anyList(), eq(baseUrl));
-        verify(authorizationStore, times(1)).createAuthorizationWithDatabase(eq(identifier), anyList());
-        verify(challengeStore, times(1)).createChallengeWithDatabase(eq(789L), eq(baseUrl));
+        verify(orderStore, times(1)).saveIdentifiersForOrder(eq(123L), anyList()); // 새로 추가된 호출
+        verify(authorizationStore, times(1)).createAuthorizationWithIdentifierEntity(eq(mockIdentifierEntity), anyList()); // 변경된 메서드
+        verify(challengeStore, times(1)).createChallengeWithAuthorizationEntity(eq(mockAuthzEntity), eq(baseUrl));
     }
 
     @Test
