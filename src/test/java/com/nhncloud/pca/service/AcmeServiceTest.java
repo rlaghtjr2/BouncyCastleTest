@@ -4,8 +4,10 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyList;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -37,7 +39,6 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
-import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.MockitoAnnotations;
 import org.mockito.junit.jupiter.MockitoExtension;
@@ -51,6 +52,7 @@ import com.nhncloud.pca.constant.acme.ProblemType;
 import com.nhncloud.pca.entity.acme.AcmeAuthorizationEntity;
 import com.nhncloud.pca.entity.acme.AcmeIdentifierEntity;
 import com.nhncloud.pca.exception.AcmeProblemException;
+import com.nhncloud.pca.mapper.AcmeMapper;
 import com.nhncloud.pca.model.acme.CertificateResult;
 import com.nhncloud.pca.model.acme.Directory;
 import com.nhncloud.pca.model.acme.FinalizeResult;
@@ -70,6 +72,7 @@ import com.nhncloud.pca.store.CertStore;
 import com.nhncloud.pca.store.ChallengeStore;
 import com.nhncloud.pca.store.NonceStore;
 import com.nhncloud.pca.store.OrderStore;
+import com.nhncloud.pca.util.BouncyCastleUtil;
 import com.nimbusds.jose.jwk.RSAKey;
 import com.nimbusds.jose.util.Base64URL;
 
@@ -94,14 +97,16 @@ public class AcmeServiceTest {
     @Mock
     CertStore certStore;
 
-    @InjectMocks
-    private AcmeServiceImpl service;
+    @Mock
+    private AcmeMapper acmeMapper;
+
+    private AcmeService service;
 
     @BeforeEach
-    public void setUp() {
+    void setUp() {
         Security.addProvider(new BouncyCastleProvider());
-        MockitoAnnotations.openMocks(this); // MockitoAnnotations 추가
-        service = new AcmeServiceImpl(nonceStore, accountStore, challengeStore, authorizationStore, orderStore, certStore);
+        MockitoAnnotations.openMocks(this);
+        service = new AcmeServiceImpl(nonceStore, accountStore, challengeStore, authorizationStore, orderStore, certStore, acmeMapper);
     }
 
     @Test
@@ -208,12 +213,12 @@ public class AcmeServiceTest {
 
         // OrderStore의 createOrderWithDatabase Mock 설정
         Order mockOrder = Order.builder()
-            .id("123")
+            .id(123L) // String "123"을 Long 123L로 변경
             .status(OrderStatus.PENDING)
             .identifiers(List.of(identifier))
-            .authorizations(List.of(mockAuthz))
+            .authorizations(new ArrayList<>()) // 빈 목록
             .expires(LocalDateTime.now().plusMinutes(5))
-            .finalize(baseUrl + "/acme/finalize/123")
+            .finalize(baseUrl + "/acme/order/123/finalize")
             .build();
 
         when(orderStore.createOrderWithDatabase(eq(123L), anyList(), anyList(), eq(baseUrl))).thenReturn(mockOrder);
@@ -229,14 +234,6 @@ public class AcmeServiceTest {
         when(orderStore.saveIdentifiersForOrder(eq(123L), anyList()))
             .thenReturn(List.of(mockIdentifierEntity));
 
-        // AuthorizationStore의 createAuthorizationWithIdentifierEntity Mock 설정
-        Authorization mockAuthzWithoutChallenge = Authorization.builder()
-            .id("789")
-            .identifier(identifier)
-            .status(AuthorizationStatus.PENDING)
-            .challenges(new ArrayList<>()) // 빈 목록
-            .build();
-
         // Mock AcmeAuthorizationEntity 생성
         AcmeAuthorizationEntity mockAuthzEntity = AcmeAuthorizationEntity.builder()
             .id(789L)
@@ -245,12 +242,9 @@ public class AcmeServiceTest {
             .expires(LocalDateTime.now().plusHours(1))
             .build();
 
-        // AuthorizationStore.AuthorizationWithEntity Mock 생성
-        AuthorizationStore.AuthorizationWithEntity mockAuthzWithEntity =
-            new AuthorizationStore.AuthorizationWithEntity(mockAuthzWithoutChallenge, mockAuthzEntity);
-
-        when(authorizationStore.createAuthorizationWithIdentifierEntity(eq(mockIdentifierEntity), anyList()))
-            .thenReturn(mockAuthzWithEntity);
+        // AuthorizationStore Mock 설정 - 이제 Entity를 직접 반환
+        when(authorizationStore.createAuthorizationWithIdentifierEntity(eq(mockIdentifierEntity)))
+            .thenReturn(mockAuthzEntity);
 
         // ChallengeStore의 createChallengeWithAuthorizationEntity Mock 설정
         when(challengeStore.createChallengeWithAuthorizationEntity(eq(mockAuthzEntity), eq(baseUrl)))
@@ -264,13 +258,13 @@ public class AcmeServiceTest {
         OrderCreationResult result = service.createOrder(jwsRequest, baseUrl, mockRequest);
 
         // ----- 검증 -----
-        assertEquals("123", result.getOrder().getId()); // DB에서 생성된 ID 사용
+        assertEquals(123L, result.getOrder().getId()); // Order id가 Long이므로 Long으로 비교
         assertEquals(1, result.getAuthzs().size());
 
         // DB 저장 메서드들이 호출되었는지 검증 (변경된 로직 반영)
         verify(orderStore, times(1)).createOrderWithDatabase(eq(123L), anyList(), anyList(), eq(baseUrl));
         verify(orderStore, times(1)).saveIdentifiersForOrder(eq(123L), anyList()); // 새로 추가된 호출
-        verify(authorizationStore, times(1)).createAuthorizationWithIdentifierEntity(eq(mockIdentifierEntity), anyList()); // 변경된 메서드
+        verify(authorizationStore, times(1)).createAuthorizationWithIdentifierEntity(eq(mockIdentifierEntity)); // 변경된 메서드
         verify(challengeStore, times(1)).createChallengeWithAuthorizationEntity(eq(mockAuthzEntity), eq(baseUrl));
     }
 
@@ -384,7 +378,7 @@ public class AcmeServiceTest {
     @Test
     void finalizeOrder_success() throws Exception {
         // ----- 테스트 데이터 준비 -----
-        String orderId = "order-123";
+        String orderId = "123"; // String으로 유지
         JwsRequest jwsRequest = new JwsRequest("protected", "payload", "signature");
 
         // ----- JWS 파싱 결과 구성 -----
@@ -399,7 +393,7 @@ public class AcmeServiceTest {
 
         // ----- Order 구성 -----
         Order order = Order.builder()
-            .id(orderId)
+            .id(Long.parseLong(orderId)) // String을 Long으로 변환
             .status(OrderStatus.READY)
             .build();
 
@@ -407,6 +401,10 @@ public class AcmeServiceTest {
         when(orderStore.getOrder(orderId)).thenReturn(order);
         when(orderStore.isDomainAuthorized(orderId, "test.com")).thenReturn(true);
         when(nonceStore.generateNonce()).thenReturn("new-nonce");
+
+        // Mock X509Certificate 생성
+        X509Certificate mockCertificate = mock(X509Certificate.class);
+        when(BouncyCastleUtil.generateSelfSignedCert(any())).thenReturn(mockCertificate);
 
         // ----- Mock HttpServletRequest -----
         MockHttpServletRequest mockRequest = new MockHttpServletRequest();

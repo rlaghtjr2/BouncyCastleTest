@@ -29,8 +29,8 @@ public class OrderStore {
     private final AcmeAuthorizationRepository acmeAuthorizationRepository;
 
     public OrderStore(AcmeOrderRepository acmeOrderRepository,
-                     AcmeIdentifierRepository acmeIdentifierRepository,
-                     AcmeAuthorizationRepository acmeAuthorizationRepository) {
+                      AcmeIdentifierRepository acmeIdentifierRepository,
+                      AcmeAuthorizationRepository acmeAuthorizationRepository) {
         this.acmeOrderRepository = acmeOrderRepository;
         this.acmeIdentifierRepository = acmeIdentifierRepository;
         this.acmeAuthorizationRepository = acmeAuthorizationRepository;
@@ -55,7 +55,7 @@ public class OrderStore {
             String finalizeUrl = baseUrl + "/acme/order/" + savedOrder.getId() + "/finalize";
 
             Order order = Order.builder()
-                .id(savedOrder.getId().toString())
+                .id(savedOrder.getId()) // Long id 직접 사용
                 .status(savedOrder.getStatus())
                 .identifiers(identifiers) // 원래 Identifier 객체들 사용
                 .authorizations(authorizations)
@@ -74,30 +74,25 @@ public class OrderStore {
      * 특정 Order에 Identifier들을 저장하는 메서드 (저장된 Entity들 반환)
      */
     public List<AcmeIdentifierEntity> saveIdentifiersForOrder(Long orderId, List<Identifier> identifiers) {
-        try {
-            // Order Entity 조회
-            Optional<AcmeOrderEntity> orderEntity = acmeOrderRepository.findById(orderId);
-            if (orderEntity.isEmpty()) {
-                throw new RuntimeException("Order not found with ID: " + orderId);
-            }
-
-            AcmeOrderEntity order = orderEntity.get();
-
-            // Identifier들을 DB에 저장 (Order Entity 참조 사용)
-            List<AcmeIdentifierEntity> identifierEntities = identifiers.stream()
-                .map(identifier -> AcmeIdentifierEntity.builder()
-                    .order(order) // Order Entity 직접 참조
-                    .type(identifier.getType())
-                    .value(identifier.getValue())
-                    .build())
-                .collect(Collectors.toList());
-
-            List<AcmeIdentifierEntity> savedIdentifiers = acmeIdentifierRepository.saveAll(identifierEntities);
-            return savedIdentifiers; // 저장된 Entity들 반환
-
-        } catch (Exception e) {
-            throw new RuntimeException("Failed to save identifiers for order: " + e.getMessage(), e);
+        // Order Entity 조회
+        Optional<AcmeOrderEntity> orderEntity = acmeOrderRepository.findById(orderId);
+        if (orderEntity.isEmpty()) {
+            throw new RuntimeException("Order not found with ID: " + orderId);
         }
+
+        AcmeOrderEntity order = orderEntity.get();
+
+        // Identifier들을 DB에 저장 (Order Entity 참조 사용)
+        List<AcmeIdentifierEntity> identifierEntities = identifiers.stream()
+            .map(identifier -> AcmeIdentifierEntity.builder()
+                .order(order) // Order Entity 직접 참조
+                .type(identifier.getType())
+                .value(identifier.getValue())
+                .build())
+            .collect(Collectors.toList());
+
+        List<AcmeIdentifierEntity> savedIdentifiers = acmeIdentifierRepository.saveAll(identifierEntities);
+        return savedIdentifiers; // 저장된 Entity들 반환
     }
 
     public Order getOrder(String id) {
@@ -133,7 +128,7 @@ public class OrderStore {
 
                         // Authorization 객체 생성
                         Authorization authorization = Authorization.builder()
-                            .id(authz.getId().toString())
+                            .id(authz.getId().toString()) // Authorization은 아직 String id 사용
                             .identifier(identifier)
                             .status(authz.getStatus())
                             .expires(authz.getExpires())
@@ -149,7 +144,7 @@ public class OrderStore {
                 String finalizeUrl = "/acme/finalize/" + entity.getId();
 
                 return Order.builder()
-                    .id(entity.getId().toString())
+                    .id(entity.getId()) // Long id 직접 사용
                     .status(entity.getStatus())
                     .identifiers(identifiers) // JPA 관계를 통해 조회한 Identifier들
                     .authorizations(authorizations) // JPA 관계를 통해 조회한 Authorization들
@@ -194,7 +189,7 @@ public class OrderStore {
 
         if (allValid && order.getStatus().equals(OrderStatus.PENDING)) {
             try {
-                Long orderId = Long.parseLong(order.getId());
+                Long orderId = order.getId(); // Order의 Long id 직접 사용
                 Optional<AcmeOrderEntity> orderEntity = acmeOrderRepository.findById(orderId);
                 if (orderEntity.isPresent()) {
                     AcmeOrderEntity entity = orderEntity.get();
@@ -202,7 +197,7 @@ public class OrderStore {
                     acmeOrderRepository.save(entity);
                     order.setStatus(OrderStatus.READY);
                 }
-            } catch (NumberFormatException e) {
+            } catch (Exception e) {
                 // 무시
             }
         }

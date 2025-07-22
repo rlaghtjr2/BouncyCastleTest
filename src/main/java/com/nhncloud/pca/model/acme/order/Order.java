@@ -1,8 +1,5 @@
 package com.nhncloud.pca.model.acme.order;
 
-import lombok.Builder;
-import lombok.Data;
-
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
@@ -13,11 +10,14 @@ import com.nhncloud.pca.constant.acme.OrderStatus;
 import com.nhncloud.pca.model.acme.Identifier;
 import com.nhncloud.pca.model.acme.authorization.Authorization;
 
+import lombok.Builder;
+import lombok.Data;
+
 @Data
 @Builder
 public class Order {
 
-    private String id;
+    private Long id;
     @Builder.Default
     private OrderStatus status = OrderStatus.PENDING;
     @Builder.Default

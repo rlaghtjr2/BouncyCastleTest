@@ -22,8 +22,10 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.nhncloud.pca.constant.acme.AuthorizationStatus;
 import com.nhncloud.pca.constant.acme.OrderStatus;
 import com.nhncloud.pca.constant.acme.ProblemType;
+import com.nhncloud.pca.entity.acme.AcmeAuthorizationEntity;
 import com.nhncloud.pca.entity.acme.AcmeIdentifierEntity;
 import com.nhncloud.pca.exception.AcmeProblemException;
+import com.nhncloud.pca.mapper.AcmeMapper;
 import com.nhncloud.pca.model.acme.CertificateResult;
 import com.nhncloud.pca.model.acme.Directory;
 import com.nhncloud.pca.model.acme.FinalizeResult;
@@ -58,14 +60,18 @@ public class AcmeServiceImpl implements AcmeService {
     private final AuthorizationStore authorizationStore;
     private final OrderStore orderStore;
     private final CertStore certStore;
+    private final AcmeMapper acmeMapper;
 
-    public AcmeServiceImpl(NonceStore nonceStore, AccountStore accountStore, ChallengeStore challengeStore, AuthorizationStore authorizationStore, OrderStore orderStore, CertStore certStore) {
+    public AcmeServiceImpl(NonceStore nonceStore, AccountStore accountStore, ChallengeStore challengeStore,
+                          AuthorizationStore authorizationStore, OrderStore orderStore, CertStore certStore,
+                          AcmeMapper acmeMapper) {
         this.nonceStore = nonceStore;
         this.accountStore = accountStore;
         this.challengeStore = challengeStore;
         this.authorizationStore = authorizationStore;
         this.orderStore = orderStore;
         this.certStore = certStore;
+        this.acmeMapper = acmeMapper;
     }
 
     @Override
@@ -120,23 +126,22 @@ public class AcmeServiceImpl implements AcmeService {
 
         // 2단계: Identifier들을 DB에 저장 (Order와 연결) - 저장된 Entity들 반환받음
         List<AcmeIdentifierEntity> savedIdentifierEntities =
-            orderStore.saveIdentifiersForOrder(Long.parseLong(order.getId()), identifiers);
+            orderStore.saveIdentifiersForOrder(order.getId(), identifiers); // Long id 직접 사용
 
         // 3단계: Authorization을 DB에 저장 후 Challenge도 DB에 저장 (저장된 Identifier Entity 활용)
         List<Authorization> savedAuthzs = new ArrayList<>();
         for (AcmeIdentifierEntity identifierEntity : savedIdentifierEntities) {
-            // Authorization을 DB에 저장 (저장된 Identifier Entity와 직접 연결) - Entity도 함께 받음
-            AuthorizationStore.AuthorizationWithEntity authzWithEntity =
-                authorizationStore.createAuthorizationWithIdentifierEntity(identifierEntity, new ArrayList<>());
+            // Authorization Entity를 DB에 저장 (불필요한 DB 조회 제거)
+            AcmeAuthorizationEntity authorizationEntity = authorizationStore.createAuthorizationWithIdentifierEntity(identifierEntity);
 
-            // Challenge를 DB에 저장 (저장된 Authorization Entity와 직접 연결)
-            Challenge challenge = challengeStore.createChallengeWithAuthorizationEntity(
-                authzWithEntity.getEntity(), baseUrl);
+            // Challenge를 DB에 저장 (저장된 Authorization Entity 직접 사용)
+            Challenge challenge = challengeStore.createChallengeWithAuthorizationEntity(authorizationEntity, baseUrl);
 
-            // Authorization에 Challenge 추가
-            Authorization authz = authzWithEntity.getAuthorization();
-            authz.setChallenges(List.of(challenge));
-            savedAuthzs.add(authz);
+            // Mapper를 사용한 Entity → 객체 변환 (간결화)
+            Authorization authorization = acmeMapper.toAuthorizationWithIdentifierAndChallenges(
+                identifierEntity, authorizationEntity, List.of(challenge));
+
+            savedAuthzs.add(authorization);
         }
 
         String replayNonce = nonceStore.generateNonce();

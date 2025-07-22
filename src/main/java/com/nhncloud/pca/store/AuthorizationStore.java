@@ -27,19 +27,17 @@ public class AuthorizationStore {
     private final AcmeChallengeRepository acmeChallengeRepository;
 
     public AuthorizationStore(AcmeAuthorizationRepository acmeAuthorizationRepository,
-                             AcmeIdentifierRepository acmeIdentifierRepository,
-                             AcmeChallengeRepository acmeChallengeRepository) {
+                              AcmeIdentifierRepository acmeIdentifierRepository,
+                              AcmeChallengeRepository acmeChallengeRepository) {
         this.acmeAuthorizationRepository = acmeAuthorizationRepository;
         this.acmeIdentifierRepository = acmeIdentifierRepository;
         this.acmeChallengeRepository = acmeChallengeRepository;
     }
 
     /**
-     * AcmeIdentifierEntity를 직접 받아서 Authorization을 생성하는 메서드 (권장)
-     * 저장된 AcmeAuthorizationEntity도 함께 반환
+     * AcmeIdentifierEntity를 직접 받아서 Authorization Entity를 생성하는 메서드 (DB 접근 최적화)
      */
-    public AuthorizationWithEntity createAuthorizationWithIdentifierEntity(AcmeIdentifierEntity identifierEntity,
-                                                               List<Challenge> challenges) {
+    public AcmeAuthorizationEntity createAuthorizationWithIdentifierEntity(AcmeIdentifierEntity identifierEntity) {
         try {
             // 1. DB에 Authorization Entity 저장
             AcmeAuthorizationEntity authzEntity = AcmeAuthorizationEntity.builder()
@@ -48,49 +46,11 @@ public class AuthorizationStore {
                     .expires(LocalDateTime.now().plusHours(1)) // 1시간 후 만료
                     .build();
 
-            AcmeAuthorizationEntity savedAuthz = acmeAuthorizationRepository.save(authzEntity);
-
-            // 2. Authorization 객체 생성
-            Identifier identifier = Identifier.builder()
-                    .type(identifierEntity.getType())
-                    .value(identifierEntity.getValue())
-                    .build();
-
-            Authorization authorization = Authorization.builder()
-                    .id(savedAuthz.getId().toString())
-                    .identifier(identifier)
-                    .status(savedAuthz.getStatus())
-                    .expires(savedAuthz.getExpires())
-                    .wildcard(savedAuthz.getWildcard())
-                    .challenges(challenges)
-                    .build();
-
-            // 3. Authorization과 Entity 모두 반환
-            return new AuthorizationWithEntity(authorization, savedAuthz);
+            // 2. 저장된 Entity를 바로 반환 (DB 접근 최적화)
+            return acmeAuthorizationRepository.save(authzEntity);
 
         } catch (Exception e) {
             throw new RuntimeException("Failed to save authorization to database: " + e.getMessage(), e);
-        }
-    }
-
-    /**
-     * Authorization과 저장된 Entity를 함께 담는 클래스
-     */
-    public static class AuthorizationWithEntity {
-        private final Authorization authorization;
-        private final AcmeAuthorizationEntity entity;
-
-        public AuthorizationWithEntity(Authorization authorization, AcmeAuthorizationEntity entity) {
-            this.authorization = authorization;
-            this.entity = entity;
-        }
-
-        public Authorization getAuthorization() {
-            return authorization;
-        }
-
-        public AcmeAuthorizationEntity getEntity() {
-            return entity;
         }
     }
 
@@ -106,31 +66,31 @@ public class AuthorizationStore {
                 Identifier identifier = null;
                 if (entity.getIdentifier() != null) {
                     identifier = Identifier.builder()
-                            .type(entity.getIdentifier().getType())
-                            .value(entity.getIdentifier().getValue())
-                            .build();
+                        .type(entity.getIdentifier().getType())
+                        .value(entity.getIdentifier().getValue())
+                        .build();
                 }
 
                 // JPA 관계를 통해 Challenge들 조회
                 List<Challenge> challenges = new ArrayList<>();
                 if (entity.getChallenges() != null && !entity.getChallenges().isEmpty()) {
                     challenges = entity.getChallenges().stream()
-                            .map(challengeEntity -> {
-                                Challenge.ChallengeBuilder builder = Challenge.builder()
-                                        .id(challengeEntity.getId().toString())
-                                        .type(challengeEntity.getType())
-                                        .status(challengeEntity.getStatus())
-                                        .url(challengeEntity.getUrl())
-                                        .token(challengeEntity.getToken());
+                        .map(challengeEntity -> {
+                            Challenge.ChallengeBuilder builder = Challenge.builder()
+                                .id(challengeEntity.getId().toString())
+                                .type(challengeEntity.getType())
+                                .status(challengeEntity.getStatus())
+                                .url(challengeEntity.getUrl())
+                                .token(challengeEntity.getToken());
 
-                                // validated 필드가 null이 아닌 경우에만 매핑
-                                if (challengeEntity.getValidated() != null) {
-                                    builder.validate(challengeEntity.getValidated());
-                                }
+                            // validated 필드가 null이 아닌 경우에만 매핑
+                            if (challengeEntity.getValidated() != null) {
+                                builder.validate(challengeEntity.getValidated());
+                            }
 
-                                return builder.build();
-                            })
-                            .collect(Collectors.toList());
+                            return builder.build();
+                        })
+                        .collect(Collectors.toList());
                 }
 
                 return Authorization.builder()
@@ -177,20 +137,20 @@ public class AuthorizationStore {
                 Identifier identifier = null;
                 if (authzEntity.getIdentifier() != null) {
                     identifier = Identifier.builder()
-                            .type(authzEntity.getIdentifier().getType())
-                            .value(authzEntity.getIdentifier().getValue())
-                            .build();
+                        .type(authzEntity.getIdentifier().getType())
+                        .value(authzEntity.getIdentifier().getValue())
+                        .build();
                 }
 
                 // Challenge 정보는 포함하지 않음 (순환 참조 방지)
                 return Authorization.builder()
-                        .id(authzEntity.getId().toString())
-                        .identifier(identifier)
-                        .status(authzEntity.getStatus())
-                        .expires(authzEntity.getExpires())
-                        .wildcard(authzEntity.getWildcard())
-                        .challenges(new ArrayList<>()) // 빈 리스트로 설정 (순환 참조 방지)
-                        .build();
+                    .id(authzEntity.getId().toString())
+                    .identifier(identifier)
+                    .status(authzEntity.getStatus())
+                    .expires(authzEntity.getExpires())
+                    .wildcard(authzEntity.getWildcard())
+                    .challenges(new ArrayList<>()) // 빈 리스트로 설정 (순환 참조 방지)
+                    .build();
             }
 
             return null;
