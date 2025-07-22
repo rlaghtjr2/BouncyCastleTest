@@ -1,10 +1,7 @@
 package com.nhncloud.pca.store;
 
 import java.time.LocalDateTime;
-import java.util.ArrayList;
-import java.util.List;
 import java.util.Optional;
-import java.util.stream.Collectors;
 
 import org.springframework.stereotype.Component;
 
@@ -12,9 +9,8 @@ import com.nhncloud.pca.constant.acme.AuthorizationStatus;
 import com.nhncloud.pca.entity.acme.AcmeAuthorizationEntity;
 import com.nhncloud.pca.entity.acme.AcmeChallengeEntity;
 import com.nhncloud.pca.entity.acme.AcmeIdentifierEntity;
-import com.nhncloud.pca.model.acme.Identifier;
+import com.nhncloud.pca.mapper.AcmeMapper;
 import com.nhncloud.pca.model.acme.authorization.Authorization;
-import com.nhncloud.pca.model.acme.challenge.Challenge;
 import com.nhncloud.pca.repository.acme.AcmeAuthorizationRepository;
 import com.nhncloud.pca.repository.acme.AcmeChallengeRepository;
 import com.nhncloud.pca.repository.acme.AcmeIdentifierRepository;
@@ -25,13 +21,16 @@ public class AuthorizationStore {
     private final AcmeAuthorizationRepository acmeAuthorizationRepository;
     private final AcmeIdentifierRepository acmeIdentifierRepository;
     private final AcmeChallengeRepository acmeChallengeRepository;
+    private final AcmeMapper acmeMapper;
 
     public AuthorizationStore(AcmeAuthorizationRepository acmeAuthorizationRepository,
                               AcmeIdentifierRepository acmeIdentifierRepository,
-                              AcmeChallengeRepository acmeChallengeRepository) {
+                              AcmeChallengeRepository acmeChallengeRepository,
+                              AcmeMapper acmeMapper) {
         this.acmeAuthorizationRepository = acmeAuthorizationRepository;
         this.acmeIdentifierRepository = acmeIdentifierRepository;
         this.acmeChallengeRepository = acmeChallengeRepository;
+        this.acmeMapper = acmeMapper;
     }
 
     /**
@@ -41,10 +40,10 @@ public class AuthorizationStore {
         try {
             // 1. DB에 Authorization Entity 저장
             AcmeAuthorizationEntity authzEntity = AcmeAuthorizationEntity.builder()
-                    .identifier(identifierEntity) // Identifier Entity 직접 참조
-                    .status(AuthorizationStatus.PENDING)
-                    .expires(LocalDateTime.now().plusHours(1)) // 1시간 후 만료
-                    .build();
+                .identifier(identifierEntity) // Identifier Entity 직접 참조
+                .status(AuthorizationStatus.PENDING)
+                .expires(LocalDateTime.now().plusHours(1)) // 1시간 후 만료
+                .build();
 
             // 2. 저장된 Entity를 바로 반환 (DB 접근 최적화)
             return acmeAuthorizationRepository.save(authzEntity);
@@ -54,106 +53,38 @@ public class AuthorizationStore {
         }
     }
 
-    public Authorization getAuthorization(String id) {
-        try {
-            Long authzId = Long.parseLong(id);
-            Optional<AcmeAuthorizationEntity> authzEntity = acmeAuthorizationRepository.findById(authzId);
-
-            if (authzEntity.isPresent()) {
-                AcmeAuthorizationEntity entity = authzEntity.get();
-
-                // JPA 관계를 통해 Identifier 조회
-                Identifier identifier = null;
-                if (entity.getIdentifier() != null) {
-                    identifier = Identifier.builder()
-                        .type(entity.getIdentifier().getType())
-                        .value(entity.getIdentifier().getValue())
-                        .build();
-                }
-
-                // JPA 관계를 통해 Challenge들 조회
-                List<Challenge> challenges = new ArrayList<>();
-                if (entity.getChallenges() != null && !entity.getChallenges().isEmpty()) {
-                    challenges = entity.getChallenges().stream()
-                        .map(challengeEntity -> {
-                            Challenge.ChallengeBuilder builder = Challenge.builder()
-                                .id(challengeEntity.getId().toString())
-                                .type(challengeEntity.getType())
-                                .status(challengeEntity.getStatus())
-                                .url(challengeEntity.getUrl())
-                                .token(challengeEntity.getToken());
-
-                            // validated 필드가 null이 아닌 경우에만 매핑
-                            if (challengeEntity.getValidated() != null) {
-                                builder.validate(challengeEntity.getValidated());
-                            }
-
-                            return builder.build();
-                        })
-                        .collect(Collectors.toList());
-                }
-
-                return Authorization.builder()
-                    .id(entity.getId().toString())
-                    .identifier(identifier) // JPA 관계를 통해 조회한 Identifier
-                    .status(entity.getStatus())
-                    .expires(entity.getExpires())
-                    .wildcard(entity.getWildcard())
-                    .challenges(challenges) // JPA 관계를 통해 조회한 Challenge들
-                    .build();
-            }
-            return null;
-        } catch (NumberFormatException e) {
-            return null;
-        }
+    /**
+     * Authorization 조회 (모든 관계 포함 - 리팩토링된 간결한 버전)
+     */
+    public Authorization getAuthorization(Long id) {
+        return acmeAuthorizationRepository.findById(id)
+            .map(acmeMapper::toAuthorizationWithRelations)
+            .orElse(null);
     }
 
-    public void markValid(String id) {
+    public void markValid(Long id) {
         try {
-            Long authzId = Long.parseLong(id);
-            Optional<AcmeAuthorizationEntity> authzEntity = acmeAuthorizationRepository.findById(authzId);
+            Optional<AcmeAuthorizationEntity> authzEntity = acmeAuthorizationRepository.findById(id);
             if (authzEntity.isPresent()) {
                 AcmeAuthorizationEntity entity = authzEntity.get();
                 entity.setStatus(AuthorizationStatus.VALID);
                 acmeAuthorizationRepository.save(entity);
             }
-        } catch (NumberFormatException e) {
+        } catch (Exception e) {
             // 무시
         }
     }
 
+    /**
+     * Challenge ID로 Authorization 조회 (순환 참조 방지를 위해 Challenge 미포함 - 리팩토링된 간결한 버전)
+     */
     public Authorization findAuthorizationByChallengeId(String challengeId) {
         try {
             Long challengeIdLong = Long.parseLong(challengeId);
-
-            // 1. Challenge Entity 조회
-            Optional<AcmeChallengeEntity> challengeEntity = acmeChallengeRepository.findById(challengeIdLong);
-
-            if (challengeEntity.isPresent() && challengeEntity.get().getAuthorization() != null) {
-                // 2. JPA 관계를 통해 Authorization Entity 조회
-                AcmeAuthorizationEntity authzEntity = challengeEntity.get().getAuthorization();
-
-                // 3. Authorization 모델로 변환
-                Identifier identifier = null;
-                if (authzEntity.getIdentifier() != null) {
-                    identifier = Identifier.builder()
-                        .type(authzEntity.getIdentifier().getType())
-                        .value(authzEntity.getIdentifier().getValue())
-                        .build();
-                }
-
-                // Challenge 정보는 포함하지 않음 (순환 참조 방지)
-                return Authorization.builder()
-                    .id(authzEntity.getId().toString())
-                    .identifier(identifier)
-                    .status(authzEntity.getStatus())
-                    .expires(authzEntity.getExpires())
-                    .wildcard(authzEntity.getWildcard())
-                    .challenges(new ArrayList<>()) // 빈 리스트로 설정 (순환 참조 방지)
-                    .build();
-            }
-
-            return null;
+            return acmeChallengeRepository.findById(challengeIdLong)
+                .map(AcmeChallengeEntity::getAuthorization)
+                .map(acmeMapper::toAuthorization) // Challenge 없는 버전 사용 (순환 참조 방지)
+                .orElse(null);
         } catch (NumberFormatException e) {
             return null;
         }

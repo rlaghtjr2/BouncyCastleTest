@@ -128,7 +128,7 @@ public class OrderStore {
 
                         // Authorization 객체 생성
                         Authorization authorization = Authorization.builder()
-                            .id(authz.getId().toString()) // Authorization은 아직 String id 사용
+                            .id(authz.getId()) // Long id 직접 사용
                             .identifier(identifier)
                             .status(authz.getStatus())
                             .expires(authz.getExpires())

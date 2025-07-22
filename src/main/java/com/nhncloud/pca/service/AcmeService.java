@@ -22,7 +22,7 @@ public interface AcmeService {
 
     OrderQueryResult getOrder(String orderId, String baseUrl);
 
-    AuthorizationResult getAuthorization(String authzId, String baseUrl);
+    AuthorizationResult getAuthorization(Long authzId, String baseUrl);
 
     ChallengeResult triggerChallenge(String id, JwsRequest jwsRequest, String baseUrl, HttpServletRequest httpRequest);
 

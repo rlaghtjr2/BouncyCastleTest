@@ -155,7 +155,7 @@ public class AcmeServiceImpl implements AcmeService {
     }
 
     @Override
-    public AuthorizationResult getAuthorization(String id, String baseUrl) {
+    public AuthorizationResult getAuthorization(Long id, String baseUrl) {
         Authorization authz = authorizationStore.getAuthorization(id);
 
         if (authz == null) {
@@ -176,7 +176,7 @@ public class AcmeServiceImpl implements AcmeService {
         // 부모 Order가 있는 경우 (status == valid)
         String upLink = null;
         if (authz.getStatus().equals(AuthorizationStatus.VALID)) {
-            Order parentOrder = orderStore.findOrderByAuthzId(authz.getId());
+            Order parentOrder = orderStore.findOrderByAuthzId(authz.getId().toString());
             if (parentOrder != null) {
                 upLink = baseUrl + "/acme/order/" + parentOrder.getId();
             }

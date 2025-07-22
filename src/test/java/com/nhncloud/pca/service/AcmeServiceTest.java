@@ -197,18 +197,20 @@ public class AcmeServiceTest {
         // ----- Challenge, Authz, Order 생성 -----
         Identifier identifier = new Identifier("dns", "example.com");
         Challenge mockChallenge = Challenge.builder()
-            .id("456") // 숫자 형태의 ID
-            .type(ChallengeType.HTTP_01)
+            .id("456")
             .url(baseUrl + "/acme/challenge/456")
-            .token("tok-abc")
+            .type(ChallengeType.HTTP_01)
             .status(ChallengeStatus.PENDING)
+            .token("mock-token")
             .build();
 
+        // Mock Authorization (Challenge 포함)
         Authorization mockAuthz = Authorization.builder()
-            .id("789") // 숫자 형태의 ID
+            .id(789L) // String을 Long으로 변경
             .identifier(identifier)
             .status(AuthorizationStatus.PENDING)
             .challenges(List.of(mockChallenge))
+            .expires(LocalDateTime.now().plusHours(1))
             .build();
 
         // OrderStore의 createOrderWithDatabase Mock 설정
@@ -271,7 +273,7 @@ public class AcmeServiceTest {
     @Test
     public void testGetAuthorization_성공() {
         // ----- 테스트 데이터 준비 -----
-        String authzId = "authz-test-123";
+        Long authzId = 123L; // String을 Long으로 변경
         String baseUrl = "https://localhost:8443";
 
         Identifier identifier = new Identifier("dns", "example.com");
@@ -285,7 +287,7 @@ public class AcmeServiceTest {
             .build();
 
         Authorization authorization = Authorization.builder()
-            .id(authzId)
+            .id(authzId) // 이제 Long authzId 사용 가능
             .identifier(identifier)
             .status(AuthorizationStatus.PENDING)
             .challenges(List.of(challenge))
@@ -307,7 +309,7 @@ public class AcmeServiceTest {
     @Test
     public void testGetAuthorization_notFound() {
         // ----- 테스트 데이터 준비 -----
-        String authzId = "non-existent-authz";
+        Long authzId = 999L; // String에서 Long으로 변경
         String baseUrl = "https://localhost:8443";
 
         // ----- Mock 설정 -----
@@ -350,7 +352,7 @@ public class AcmeServiceTest {
 
         // ----- Authorization 구성 -----
         Authorization authorization = Authorization.builder()
-            .id("authz-123")
+            .id(123L) // String을 Long으로 변경
             .identifier(new Identifier("dns", "example.com"))
             .status(AuthorizationStatus.PENDING)
             .challenges(List.of(challenge))

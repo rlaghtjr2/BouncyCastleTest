@@ -135,7 +135,7 @@ public class AcmeController {
     }
 
     @PostMapping("/authz/{id}")
-    public ResponseEntity<?> getAuthorization(@PathVariable String id, HttpServletRequest req) {
+    public ResponseEntity<?> getAuthorization(@PathVariable Long id, HttpServletRequest req) {
         String baseUrl = req.getScheme() + "://" + req.getServerName() + ":" + req.getServerPort();
         AuthorizationResult result = acmeService.getAuthorization(id, baseUrl);
 
