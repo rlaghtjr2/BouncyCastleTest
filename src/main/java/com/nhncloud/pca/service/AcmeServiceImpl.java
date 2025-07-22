@@ -16,6 +16,8 @@ import java.util.stream.Collectors;
 
 import org.bouncycastle.openssl.jcajce.JcaPEMWriter;
 import org.bouncycastle.pkcs.PKCS10CertificationRequest;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 
@@ -54,6 +56,7 @@ import com.nimbusds.jose.jwk.RSAKey;
 
 @Service
 public class AcmeServiceImpl implements AcmeService {
+    private static final Logger log = LoggerFactory.getLogger(AcmeServiceImpl.class);
     private final NonceStore nonceStore;
     private final AccountStore accountStore;
     private final ChallengeStore challengeStore;
@@ -220,7 +223,7 @@ public class AcmeServiceImpl implements AcmeService {
     }
 
     @Override
-    public FinalizeResult finalizeOrder(String orderId, JwsRequest jwsRequest, HttpServletRequest httpRequest) {
+    public FinalizeResult finalizeOrder(Long orderId, JwsRequest jwsRequest, HttpServletRequest httpRequest) {
         // Interceptor에서 이미 JWS 파싱 및 nonce 검증 완료
         JwsParseResult result = (JwsParseResult) httpRequest.getAttribute("jwsParseResult");
 
@@ -236,20 +239,18 @@ public class AcmeServiceImpl implements AcmeService {
             throw new RuntimeException("csr decoding failed", e);
         }
 
-        // 3. 도메인 추출
-        String domain = null;
-        try {
-            domain = BouncyCastleUtil.extractCommonName(csr);
-        } catch (Exception e) {
-            throw new RuntimeException("domain extraction failed", e);
-        }
+        // 3. CSR에서 도메인 추출
+        String domain = BouncyCastleUtil.extractCommonName(csr);
 
-        // 4. 도메인 인증 여부 확인
+        // 4. CSR domain과 CA Certificate domain 매칭 확인
         if (!orderStore.isDomainAuthorized(orderId, domain)) {
-            throw new AcmeProblemException(ProblemType.MALFORMED, "domain '" + domain + "' is not authorized for order '" + orderId + "'",
+            log.error("[finalizeOrder] CSR domain '" + domain + "' is not authorized for order '" + orderId + "'");
+            throw new AcmeProblemException(ProblemType.MALFORMED,
+                "CSR domain '" + domain + "' is not authorized for order '" + orderId + "'. " +
+                    "Domain must match either ACME Authorization or existing CA Certificate domain.",
                 HttpStatus.NOT_FOUND, nonceStore.generateNonce());
         }
-
+        
         // 5. 인증서 생성 및 저장
         X509Certificate certificate = null;
         try {
@@ -260,7 +261,7 @@ public class AcmeServiceImpl implements AcmeService {
         String certId = UUID.randomUUID().toString();
         certStore.save(certId, certificate);
 
-        // 6. order finalize
+        // 6. order finalize (Long orderId 직접 사용)
         String pemCert = CertificateUtil.toPemString(certificate);
         orderStore.finalizeOrder(orderId, certId, csr, pemCert);
 
@@ -271,8 +272,8 @@ public class AcmeServiceImpl implements AcmeService {
     }
 
     @Override
-    public OrderQueryResult getOrder(String orderId, String baseUrl) {
-        Order order = orderStore.getOrder(orderId);
+    public OrderQueryResult getOrder(Long orderId, String baseUrl) {
+        Order order = orderStore.getOrder(orderId); // Long 직접 사용
         if (order == null) {
             throw new AcmeProblemException(ProblemType.MALFORMED, "Order resource with ID '" + orderId + "' was not found",
                 HttpStatus.NOT_FOUND, nonceStore.generateNonce());

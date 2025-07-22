@@ -10,6 +10,7 @@ import com.nhncloud.pca.converter.ExternalAccountBindingConverter;
 import com.nhncloud.pca.entity.CaEntity;
 import com.nhncloud.pca.model.acme.ExternalAccountBinding;
 
+import jakarta.persistence.CascadeType;
 import jakarta.persistence.Column;
 import jakarta.persistence.Convert;
 import jakarta.persistence.Entity;
@@ -17,6 +18,7 @@ import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.JoinColumn;
+import jakarta.persistence.OneToMany;
 import jakarta.persistence.OneToOne;
 import jakarta.persistence.PrePersist;
 import jakarta.persistence.PreUpdate;
@@ -60,6 +62,10 @@ public class AcmeAccountEntity {
 
     @Column(name = "private_key", nullable = false, columnDefinition = "TEXT")
     private String privateKey;
+
+    // 1:N 관계 - 하나의 Account는 여러 Order를 가질 수 있음
+    @OneToMany(mappedBy = "account", cascade = CascadeType.ALL, orphanRemoval = true)
+    private List<AcmeOrderEntity> orders;
 
     @Column(name = "creation_user", nullable = false, length = 100)
     private String creationUser;

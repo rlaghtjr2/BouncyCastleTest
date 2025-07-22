@@ -20,13 +20,13 @@ public interface AcmeService {
 
     OrderCreationResult createOrder(JwsRequest jwsRequest, String baseUrl, HttpServletRequest request);
 
-    OrderQueryResult getOrder(String orderId, String baseUrl);
+    OrderQueryResult getOrder(Long orderId, String baseUrl);
 
     AuthorizationResult getAuthorization(Long authzId, String baseUrl);
 
     ChallengeResult triggerChallenge(Long id, JwsRequest jwsRequest, String baseUrl, HttpServletRequest httpRequest);
 
-    FinalizeResult finalizeOrder(String orderId, JwsRequest jwsRequest, HttpServletRequest httpRequest);
+    FinalizeResult finalizeOrder(Long orderId, JwsRequest jwsRequest, HttpServletRequest httpRequest);
 
     CertificateResult getCertificate(String orderId, String baseUrl);
 }

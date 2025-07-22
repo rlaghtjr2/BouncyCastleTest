@@ -194,19 +194,17 @@ public class AcmeController {
     }
 
     @PostMapping("/order/{orderId}/finalize")
-    public ResponseEntity<?> finalizeOrder(@PathVariable String orderId,
-                                           @RequestBody JwsRequest jwsRequest,
-                                           HttpServletRequest request
-    ) {
+    public ResponseEntity<?> finalizeOrder(@PathVariable Long orderId,
+                                          @RequestBody JwsRequest jwsRequest,
+                                          HttpServletRequest req) {
         try {
-            FinalizeResult result = acmeService.finalizeOrder(orderId, jwsRequest, request);
+            FinalizeResult finalizeResult = acmeService.finalizeOrder(orderId, jwsRequest, req);
 
             Map<String, Object> response = Map.of(
-                "status", result.getStatus()
+                "status", finalizeResult.getStatus()
             );
-
             HttpHeaders headers = new HttpHeaders();
-            headers.set("Replay-Nonce", result.getReplayNonce());
+            headers.set("Replay-Nonce", finalizeResult.getReplayNonce());
             headers.setContentType(MediaType.APPLICATION_JSON);
 
             log.info("----Finalize----");
@@ -224,9 +222,9 @@ public class AcmeController {
     }
 
     @PostMapping("/order/{orderId}")
-    public ResponseEntity<?> getOrder(@PathVariable String orderId, HttpServletRequest request) {
+    public ResponseEntity<?> getOrder(@PathVariable Long orderId, HttpServletRequest request) {
         String baseUrl = request.getScheme() + "://" + request.getServerName() + ":" + request.getServerPort();
-        OrderQueryResult result = acmeService.getOrder(orderId, baseUrl);
+        OrderQueryResult result = acmeService.getOrder(orderId, baseUrl); // Long 직접 전달
 
         HttpHeaders headers = new HttpHeaders();
         headers.set("Replay-Nonce", result.getReplayNonce());

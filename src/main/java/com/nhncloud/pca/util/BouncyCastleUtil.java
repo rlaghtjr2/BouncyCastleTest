@@ -148,7 +148,7 @@ public class BouncyCastleUtil {
         return new GeneralNames(generalNames.toArray(new GeneralName[0]));
     }
 
-    public static String extractCommonName(PKCS10CertificationRequest csr) throws Exception {
+    public static String extractCommonName(PKCS10CertificationRequest csr) {
         Extensions extensions = csr.getRequestedExtensions();
         GeneralNames gns = GeneralNames.fromExtensions(extensions, Extension.subjectAlternativeName);
         for (GeneralName gn : gns.getNames()) {

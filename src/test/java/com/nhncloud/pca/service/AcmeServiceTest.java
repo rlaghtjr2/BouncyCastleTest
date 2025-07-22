@@ -380,7 +380,7 @@ public class AcmeServiceTest {
     @Test
     void finalizeOrder_success() throws Exception {
         // ----- 테스트 데이터 준비 -----
-        String orderId = "123"; // String으로 유지
+        Long orderId = 123L; // String을 Long으로 변경
         JwsRequest jwsRequest = new JwsRequest("protected", "payload", "signature");
 
         // ----- JWS 파싱 결과 구성 -----
@@ -395,13 +395,13 @@ public class AcmeServiceTest {
 
         // ----- Order 구성 -----
         Order order = Order.builder()
-            .id(Long.parseLong(orderId)) // String을 Long으로 변환
+            .id(orderId) // Long orderId 직접 사용
             .status(OrderStatus.READY)
             .build();
 
         // ----- Mock 설정 -----
-        when(orderStore.getOrder(orderId)).thenReturn(order);
-        when(orderStore.isDomainAuthorized(orderId, "test.com")).thenReturn(true);
+        when(orderStore.getOrder(orderId)).thenReturn(order); // Long orderId 직접 사용
+        when(orderStore.isDomainAuthorized(orderId, "test.com")).thenReturn(true); // Long 직접 사용
         when(nonceStore.generateNonce()).thenReturn("new-nonce");
 
         // Mock X509Certificate 생성
@@ -413,7 +413,7 @@ public class AcmeServiceTest {
         mockRequest.setAttribute("jwsParseResult", mockResult);
 
         // ----- 서비스 호출 -----
-        FinalizeResult result = service.finalizeOrder(orderId, jwsRequest, mockRequest);
+        FinalizeResult result = service.finalizeOrder(orderId, jwsRequest, mockRequest); // Long 직접 사용
 
         // ----- 검증 -----
         assertEquals("new-nonce", result.getReplayNonce());
