@@ -1,17 +1,17 @@
 package com.nhncloud.pca.model.acme.challenge;
 
-import lombok.Builder;
-import lombok.Data;
-
 import java.time.LocalDateTime;
 
 import com.nhncloud.pca.constant.acme.ChallengeStatus;
 import com.nhncloud.pca.constant.acme.ChallengeType;
 
+import lombok.Builder;
+import lombok.Data;
+
 @Data
 @Builder
 public class Challenge {
-    private String id;
+    private Long id;
     private String url;
     @Builder.Default
     private ChallengeType type = ChallengeType.HTTP_01;

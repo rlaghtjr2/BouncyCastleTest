@@ -24,7 +24,7 @@ public interface AcmeService {
 
     AuthorizationResult getAuthorization(Long authzId, String baseUrl);
 
-    ChallengeResult triggerChallenge(String id, JwsRequest jwsRequest, String baseUrl, HttpServletRequest httpRequest);
+    ChallengeResult triggerChallenge(Long id, JwsRequest jwsRequest, String baseUrl, HttpServletRequest httpRequest);
 
     FinalizeResult finalizeOrder(String orderId, JwsRequest jwsRequest, HttpServletRequest httpRequest);
 

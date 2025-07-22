@@ -29,12 +29,12 @@ public class ChallengeStore {
 
             // 1. DB에 Challenge Entity 저장 (Authorization Entity 직접 참조)
             AcmeChallengeEntity challengeEntity = AcmeChallengeEntity.builder()
-                    .authorization(authorizationEntity) // Authorization Entity 직접 참조
-                    .type(ChallengeType.HTTP_01) // 기본 타입
-                    .status(ChallengeStatus.PENDING)
-                    .url(baseUrl + "/acme/challenge/") // 임시 URL, 저장 후 업데이트
-                    .token(token)
-                    .build();
+                .authorization(authorizationEntity) // Authorization Entity 직접 참조
+                .type(ChallengeType.HTTP_01) // 기본 타입
+                .status(ChallengeStatus.PENDING)
+                .url(baseUrl + "/acme/challenge/") // 임시 URL, 저장 후 업데이트
+                .token(token)
+                .build();
 
             AcmeChallengeEntity savedChallenge = acmeChallengeRepository.save(challengeEntity);
 
@@ -44,12 +44,12 @@ public class ChallengeStore {
 
             // 3. Challenge 객체 생성
             Challenge challenge = Challenge.builder()
-                    .id(savedChallenge.getId().toString())
-                    .type(savedChallenge.getType())
-                    .status(savedChallenge.getStatus())
-                    .url(savedChallenge.getUrl())
-                    .token(savedChallenge.getToken())
-                    .build();
+                .id(savedChallenge.getId()) // Long id 직접 사용
+                .type(savedChallenge.getType())
+                .status(savedChallenge.getStatus())
+                .url(savedChallenge.getUrl())
+                .token(savedChallenge.getToken())
+                .build();
 
             return challenge;
 
@@ -58,15 +58,14 @@ public class ChallengeStore {
         }
     }
 
-    public Challenge getChallenge(String id) {
+    public Challenge getChallenge(Long id) {
         try {
-            Long challengeId = Long.parseLong(id);
-            Optional<AcmeChallengeEntity> challengeEntity = acmeChallengeRepository.findById(challengeId);
+            Optional<AcmeChallengeEntity> challengeEntity = acmeChallengeRepository.findById(id);
 
             if (challengeEntity.isPresent()) {
                 AcmeChallengeEntity entity = challengeEntity.get();
                 return Challenge.builder()
-                    .id(entity.getId().toString())
+                    .id(entity.getId()) // Long id 직접 사용
                     .type(entity.getType())
                     .status(entity.getStatus())
                     .url(entity.getUrl())
@@ -74,22 +73,16 @@ public class ChallengeStore {
                     .build();
             }
             return null;
-        } catch (NumberFormatException e) {
+        } catch (Exception e) {
             return null;
         }
     }
 
-    public void markValid(String id) {
-        try {
-            Long challengeId = Long.parseLong(id);
-            Optional<AcmeChallengeEntity> challengeEntity = acmeChallengeRepository.findById(challengeId);
-            if (challengeEntity.isPresent()) {
-                AcmeChallengeEntity entity = challengeEntity.get();
-                entity.setStatus(ChallengeStatus.VALID);
-                acmeChallengeRepository.save(entity);
-            }
-        } catch (NumberFormatException e) {
-            // 무시
-        }
+    public void markValid(Long id) {
+        Optional<AcmeChallengeEntity> challengeEntity = acmeChallengeRepository.findById(id);
+        challengeEntity.ifPresent(acmeChallengeEntity -> {
+            acmeChallengeEntity.setStatus(ChallengeStatus.VALID);
+            acmeChallengeRepository.save(acmeChallengeEntity);
+        });
     }
 }

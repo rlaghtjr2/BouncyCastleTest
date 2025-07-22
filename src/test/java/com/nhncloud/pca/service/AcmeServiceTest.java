@@ -197,7 +197,7 @@ public class AcmeServiceTest {
         // ----- Challenge, Authz, Order 생성 -----
         Identifier identifier = new Identifier("dns", "example.com");
         Challenge mockChallenge = Challenge.builder()
-            .id("456")
+            .id(456L) // String을 Long으로 변경
             .url(baseUrl + "/acme/challenge/456")
             .type(ChallengeType.HTTP_01)
             .status(ChallengeStatus.PENDING)
@@ -279,7 +279,7 @@ public class AcmeServiceTest {
         Identifier identifier = new Identifier("dns", "example.com");
 
         Challenge challenge = Challenge.builder()
-            .id("challenge-123")
+            .id(123L) // String을 Long으로 변경
             .type(ChallengeType.HTTP_01)
             .url(baseUrl + "/acme/challenge/challenge-123")
             .token("tok-abc")
@@ -328,7 +328,7 @@ public class AcmeServiceTest {
     @Test
     void triggerChallenge_success() {
         // ----- 테스트 데이터 준비 -----
-        String challengeId = "challenge-123";
+        Long challengeId = 123L; // String을 Long으로 변경
         String baseUrl = "https://localhost:8443";
         JwsRequest jwsRequest = new JwsRequest("protected", "payload", "signature");
 
@@ -343,7 +343,7 @@ public class AcmeServiceTest {
 
         // ----- Challenge 구성 -----
         Challenge challenge = Challenge.builder()
-            .id(challengeId)
+            .id(challengeId) // 이제 Long challengeId 사용 가능
             .type(ChallengeType.HTTP_01)
             .url(baseUrl + "/acme/challenge/" + challengeId)
             .token("tok-abc")
@@ -360,7 +360,7 @@ public class AcmeServiceTest {
 
         // ----- Mock 설정 -----
         when(challengeStore.getChallenge(challengeId)).thenReturn(challenge);
-        when(authorizationStore.findAuthorizationByChallengeId(challengeId)).thenReturn(authorization);
+        when(authorizationStore.findAuthorizationByChallengeId(challengeId)).thenReturn(authorization); // toString() 제거
         when(nonceStore.generateNonce()).thenReturn("new-nonce");
 
         // ----- Mock HttpServletRequest -----

@@ -1,5 +1,7 @@
 package com.nhncloud.pca.service;
 
+import jakarta.servlet.http.HttpServletRequest;
+
 import java.io.IOException;
 import java.io.StringWriter;
 import java.security.cert.X509Certificate;
@@ -50,8 +52,6 @@ import com.nhncloud.pca.util.BouncyCastleUtil;
 import com.nhncloud.pca.util.CertificateUtil;
 import com.nimbusds.jose.jwk.RSAKey;
 
-import jakarta.servlet.http.HttpServletRequest;
-
 @Service
 public class AcmeServiceImpl implements AcmeService {
     private final NonceStore nonceStore;
@@ -63,8 +63,8 @@ public class AcmeServiceImpl implements AcmeService {
     private final AcmeMapper acmeMapper;
 
     public AcmeServiceImpl(NonceStore nonceStore, AccountStore accountStore, ChallengeStore challengeStore,
-                          AuthorizationStore authorizationStore, OrderStore orderStore, CertStore certStore,
-                          AcmeMapper acmeMapper) {
+                           AuthorizationStore authorizationStore, OrderStore orderStore, CertStore certStore,
+                           AcmeMapper acmeMapper) {
         this.nonceStore = nonceStore;
         this.accountStore = accountStore;
         this.challengeStore = challengeStore;
@@ -193,10 +193,7 @@ public class AcmeServiceImpl implements AcmeService {
     }
 
     @Override
-    public ChallengeResult triggerChallenge(String id, JwsRequest jwsRequest, String baseUrl, HttpServletRequest httpRequest) {
-        // Interceptor에서 이미 JWS 파싱 및 nonce 검증 완료
-        JwsParseResult result = (JwsParseResult) httpRequest.getAttribute("jwsParseResult");
-
+    public ChallengeResult triggerChallenge(Long id, JwsRequest jwsRequest, String baseUrl, HttpServletRequest httpRequest) {
         Challenge challenge = challengeStore.getChallenge(id);
         if (challenge == null) {
             throw new AcmeProblemException(ProblemType.MALFORMED, "Challenge resource with ID '" + id + "' was not found",
@@ -205,7 +202,7 @@ public class AcmeServiceImpl implements AcmeService {
 
         // Challenge 및 Authorization 상태 갱신
         challengeStore.markValid(id);
-        Authorization authz = authorizationStore.findAuthorizationByChallengeId(id);
+        Authorization authz = authorizationStore.findAuthorizationByChallengeId(id); // toString() 제거
         authorizationStore.markValid(authz.getId());
 
         // 응답 데이터

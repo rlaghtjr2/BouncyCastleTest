@@ -63,30 +63,22 @@ public class AuthorizationStore {
     }
 
     public void markValid(Long id) {
-        try {
-            Optional<AcmeAuthorizationEntity> authzEntity = acmeAuthorizationRepository.findById(id);
-            if (authzEntity.isPresent()) {
-                AcmeAuthorizationEntity entity = authzEntity.get();
-                entity.setStatus(AuthorizationStatus.VALID);
-                acmeAuthorizationRepository.save(entity);
-            }
-        } catch (Exception e) {
-            // 무시
-        }
+        Optional<AcmeAuthorizationEntity> authzEntity = acmeAuthorizationRepository.findById(id);
+        authzEntity.ifPresent(acmeAuthorizationEntity -> {
+            acmeAuthorizationEntity.setStatus(AuthorizationStatus.VALID);
+            acmeAuthorizationRepository.save(acmeAuthorizationEntity);
+        });
     }
 
     /**
      * Challenge ID로 Authorization 조회 (순환 참조 방지를 위해 Challenge 미포함 - 리팩토링된 간결한 버전)
      */
-    public Authorization findAuthorizationByChallengeId(String challengeId) {
-        try {
-            Long challengeIdLong = Long.parseLong(challengeId);
-            return acmeChallengeRepository.findById(challengeIdLong)
-                .map(AcmeChallengeEntity::getAuthorization)
-                .map(acmeMapper::toAuthorization) // Challenge 없는 버전 사용 (순환 참조 방지)
-                .orElse(null);
-        } catch (NumberFormatException e) {
-            return null;
-        }
+    public Authorization findAuthorizationByChallengeId(Long challengeId) {
+        return acmeChallengeRepository.findById(challengeId)
+            .map(AcmeChallengeEntity::getAuthorization)
+            .map(acmeMapper::toAuthorization) // Challenge 없는 버전 사용 (순환 참조 방지)
+            .orElseThrow(
+                () -> new RuntimeException("Authorization not found for challenge ID: " + challengeId)
+            );
     }
 }

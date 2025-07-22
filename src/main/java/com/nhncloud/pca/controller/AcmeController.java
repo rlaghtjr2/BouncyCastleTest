@@ -161,7 +161,7 @@ public class AcmeController {
     }
 
     @PostMapping("/challenge/{id}")
-    public ResponseEntity<?> triggerChallenge(@PathVariable String id,
+    public ResponseEntity<?> triggerChallenge(@PathVariable Long id,
                                               @RequestBody JwsRequest jwsRequest,
                                               HttpServletRequest req) {
         try {

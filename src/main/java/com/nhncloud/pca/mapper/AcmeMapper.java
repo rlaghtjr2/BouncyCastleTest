@@ -27,7 +27,7 @@ public interface AcmeMapper {
     /**
      * AcmeChallengeEntity를 Challenge로 변환
      */
-    @Mapping(target = "id", expression = "java(entity.getId().toString())")
+    @Mapping(target = "id", source = "id")
     @Mapping(target = "type", source = "type")
     @Mapping(target = "status", source = "status")
     @Mapping(target = "url", source = "url")
