@@ -6,7 +6,6 @@ import java.util.List;
 import java.util.Optional;
 import java.util.stream.Collectors;
 
-import org.bouncycastle.pkcs.PKCS10CertificationRequest;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Component;
@@ -198,21 +197,49 @@ public class OrderStore {
     }
 
     /**
-     * CA Certificate의 도메인과 요청 도메인 매칭 확인
+     * 도메인이 인증되었는지 확인하고, 매칭되는 Certificate Entity를 반환
      */
-    private boolean checkCaCertificateDomainMatch(Long orderId, String domain) {
+    public Optional<CertificateEntity> getAuthorizedCertificate(Long orderId, String domain) {
+        // 1단계: CA Certificate 도메인 매칭 체크 및 매칭되는 Certificate 반환
+        Optional<CertificateEntity> matchedCert = findMatchingCaCertificate(orderId, domain);
+        if (matchedCert.isPresent()) {
+            log.debug("[getAuthorizedCertificate] Found matching CA certificate ID: {} for domain: {}",
+                matchedCert.get().getId(), domain);
+            return matchedCert;
+        }
+
+        // 2단계: ACME Authorization 체크 (Certificate 없음)
+//        if (checkAcmeAuthorizationDomainMatch(orderId, domain)) {
+//            log.debug("[getAuthorizedCertificate] Domain authorized via ACME Authorization (no certificate)");
+//            return Optional.empty(); // ACME Authorization으로 인증되었지만 Certificate는 없음
+//        }
+
+        return Optional.empty();
+    }
+
+    /**
+     * CA Certificate의 도메인과 요청 도메인이 매칭되는 Certificate Entity를 반환
+     */
+    private Optional<CertificateEntity> findMatchingCaCertificate(Long orderId, String domain) {
         List<CertificateEntity> certificates = getCertificatesFromOrder(orderId);
         if (certificates.isEmpty()) {
-            return false;
+            return Optional.empty();
         }
 
         for (CertificateEntity cert : certificates) {
             if (isDomainMatchInCertificate(cert, domain)) {
-                return true;
+                return Optional.of(cert);
             }
         }
 
-        return false;
+        return Optional.empty();
+    }
+
+    /**
+     * CA Certificate의 도메인과 요청 도메인 매칭 확인
+     */
+    private boolean checkCaCertificateDomainMatch(Long orderId, String domain) {
+        return findMatchingCaCertificate(orderId, domain).isPresent();
     }
 
     /**
@@ -241,19 +268,16 @@ public class OrderStore {
     private List<CertificateEntity> getCertificatesFromOrder(Long orderId) {
         Optional<AcmeOrderEntity> orderEntity = acmeOrderRepository.findById(orderId);
         if (orderEntity.isEmpty()) {
-            log.debug("[getCertificatesFromOrder] Order not found with ID: {}", orderId);
             return List.of();
         }
 
         AcmeAccountEntity accountEntity = orderEntity.get().getAccount();
         if (accountEntity == null) {
-            log.debug("[getCertificatesFromOrder] Account not found for order ID: {}", orderId);
             return List.of();
         }
 
         CaEntity caEntity = accountEntity.getCa();
         if (caEntity == null) {
-            log.debug("[getCertificatesFromOrder] CA not found for account ID: {}", accountEntity.getId());
             return List.of();
         }
 
@@ -298,17 +322,14 @@ public class OrderStore {
         }
     }
 
-    public void finalizeOrder(Long orderId, String certificateId, PKCS10CertificationRequest csr, String pemCertificate) {
-        try {
-            Optional<AcmeOrderEntity> orderEntity = acmeOrderRepository.findById(orderId); // Long 직접 사용
-            if (orderEntity.isPresent()) {
-                AcmeOrderEntity entity = orderEntity.get();
-                entity.setStatus(OrderStatus.VALID);
-                entity.setCertificateId(certificateId);
-                acmeOrderRepository.save(entity);
-            }
-        } catch (Exception e) {
-            // 무시
+    public void finalizeOrder(Long orderId, Long certificateId) {
+        Optional<AcmeOrderEntity> orderEntity = acmeOrderRepository.findById(orderId); // Long 직접 사용
+        if (orderEntity.isPresent()) {
+            AcmeOrderEntity entity = orderEntity.get();
+            entity.setStatus(OrderStatus.VALID);
+            entity.setCertificateId(certificateId.toString()); // Long을 String으로 변환하여 저장
+            acmeOrderRepository.save(entity);
+
         }
     }
 }

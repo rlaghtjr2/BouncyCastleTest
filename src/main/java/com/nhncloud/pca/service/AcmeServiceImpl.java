@@ -11,6 +11,7 @@ import java.util.Base64;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.UUID;
 import java.util.stream.Collectors;
 
@@ -26,6 +27,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.nhncloud.pca.constant.acme.AuthorizationStatus;
 import com.nhncloud.pca.constant.acme.OrderStatus;
 import com.nhncloud.pca.constant.acme.ProblemType;
+import com.nhncloud.pca.entity.CertificateEntity;
 import com.nhncloud.pca.entity.acme.AcmeAuthorizationEntity;
 import com.nhncloud.pca.entity.acme.AcmeIdentifierEntity;
 import com.nhncloud.pca.exception.AcmeProblemException;
@@ -51,7 +53,6 @@ import com.nhncloud.pca.store.ChallengeStore;
 import com.nhncloud.pca.store.NonceStore;
 import com.nhncloud.pca.store.OrderStore;
 import com.nhncloud.pca.util.BouncyCastleUtil;
-import com.nhncloud.pca.util.CertificateUtil;
 import com.nimbusds.jose.jwk.RSAKey;
 
 @Service
@@ -243,27 +244,19 @@ public class AcmeServiceImpl implements AcmeService {
         String domain = BouncyCastleUtil.extractCommonName(csr);
 
         // 4. CSR domain과 CA Certificate domain 매칭 확인
-        if (!orderStore.isDomainAuthorized(orderId, domain)) {
+        // 매칭되는 Certificate Entity 확인
+        Optional<CertificateEntity> authorizedCert = orderStore.getAuthorizedCertificate(orderId, domain);
+        if (!authorizedCert.isPresent()) {
             log.error("[finalizeOrder] CSR domain '" + domain + "' is not authorized for order '" + orderId + "'");
             throw new AcmeProblemException(ProblemType.MALFORMED,
                 "CSR domain '" + domain + "' is not authorized for order '" + orderId + "'. " +
                     "Domain must match either ACME Authorization or existing CA Certificate domain.",
                 HttpStatus.NOT_FOUND, nonceStore.generateNonce());
         }
-        
-        // 5. 인증서 생성 및 저장
-        X509Certificate certificate = null;
-        try {
-            certificate = BouncyCastleUtil.generateSelfSignedCert(csr);
-        } catch (Exception e) {
-            throw new RuntimeException("certificate generation failed", e);
-        }
-        String certId = UUID.randomUUID().toString();
-        certStore.save(certId, certificate);
 
-        // 6. order finalize (Long orderId 직접 사용)
-        String pemCert = CertificateUtil.toPemString(certificate);
-        orderStore.finalizeOrder(orderId, certId, csr, pemCert);
+        // 5. 기존 CA Certificate ID 사용하여 Order finalize
+        Long certificateId = authorizedCert.get().getId();
+        orderStore.finalizeOrder(orderId, certificateId);
 
         return FinalizeResult.builder()
             .status("valid")
@@ -273,7 +266,7 @@ public class AcmeServiceImpl implements AcmeService {
 
     @Override
     public OrderQueryResult getOrder(Long orderId, String baseUrl) {
-        Order order = orderStore.getOrder(orderId); // Long 직접 사용
+        Order order = orderStore.getOrder(orderId);
         if (order == null) {
             throw new AcmeProblemException(ProblemType.MALFORMED, "Order resource with ID '" + orderId + "' was not found",
                 HttpStatus.NOT_FOUND, nonceStore.generateNonce());
@@ -302,8 +295,8 @@ public class AcmeServiceImpl implements AcmeService {
     }
 
     @Override
-    public CertificateResult getCertificate(String certificateId, String baseUrl) {
-        X509Certificate certificate = certStore.get(certificateId);
+    public CertificateResult getCertificate(Long certificateId, String baseUrl) {
+        X509Certificate certificate = certStore.get(certificateId); // Long 직접 사용
 
         if (certificate == null) {
             throw new AcmeProblemException(ProblemType.SERVER_INTERNAL, "Certificate data not found",

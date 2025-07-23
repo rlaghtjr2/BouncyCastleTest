@@ -238,15 +238,24 @@ public class AcmeController {
 
     @PostMapping("/certificate/{id}")
     public ResponseEntity<String> getCertificate(@PathVariable String id) {
-        CertificateResult result = acmeService.getCertificate(id, "");
+        try {
+            Long certificateId = Long.parseLong(id); // String을 Long으로 변환
+            CertificateResult result = acmeService.getCertificate(certificateId, "");
 
-        HttpHeaders headers = new HttpHeaders();
-        headers.set("Replay-Nonce", result.getReplayNonce());
-        headers.setContentType(MediaType.valueOf("application/pem-certificate-chain"));
+            HttpHeaders headers = new HttpHeaders();
+            headers.set("Replay-Nonce", result.getReplayNonce());
+            headers.setContentType(MediaType.valueOf("application/pem-certificate-chain"));
 
-        log.info("----Certificate----");
-        log.info("PEM Chain: {}", result.getPemChain());
+            log.info("----Certificate----");
+            log.info("PEM Chain: {}", result.getPemChain());
 
-        return new ResponseEntity<>(result.getPemChain(), headers, HttpStatus.OK);
+            return new ResponseEntity<>(result.getPemChain(), headers, HttpStatus.OK);
+        } catch (NumberFormatException e) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                    .body("Invalid certificate ID format");
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body("Failed to retrieve certificate");
+        }
     }
 }

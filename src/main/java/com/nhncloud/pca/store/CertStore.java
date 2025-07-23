@@ -20,30 +20,28 @@ public class CertStore {
         this.certificateRepository = certificateRepository;
     }
 
-    public void save(String id, X509Certificate cert) {
+    public Long save(X509Certificate cert) {
         try {
             // X509Certificate를 PEM 문자열로 변환
             String pemCert = convertToPem(cert);
 
-                        // DB에 저장 (기존 CertificateEntity 활용)
+            // DB에 저장 (기존 CertificateEntity 활용)
             CertificateEntity certEntity = new CertificateEntity();
             certEntity.setCertificatePem(pemCert);
 
             CertificateEntity saved = certificateRepository.save(certEntity);
 
-            // 생성된 ID와 요청된 ID가 다를 수 있지만 일단 저장
-            // 실제로는 ID 매핑 테이블이나 별도 처리가 필요할 수 있음
+            // 실제 DB에서 생성된 Long ID를 반환
+            return saved.getId();
 
         } catch (Exception e) {
             throw new RuntimeException("Failed to save certificate to database: " + e.getMessage(), e);
         }
     }
 
-    public X509Certificate get(String id) {
+    public X509Certificate get(Long id) {
         try {
-            // 간단한 구현을 위해 ID를 Long으로 변환 시도
-            Long certId = Long.parseLong(id);
-            Optional<CertificateEntity> certEntity = certificateRepository.findById(certId);
+            Optional<CertificateEntity> certEntity = certificateRepository.findById(id); // Long 직접 사용
 
             if (certEntity.isPresent()) {
                 String pemCert = certEntity.get().getCertificatePem();
@@ -52,9 +50,6 @@ public class CertStore {
 
             return null;
 
-        } catch (NumberFormatException e) {
-            // ID가 숫자가 아닌 경우 처리 불가
-            return null;
         } catch (Exception e) {
             throw new RuntimeException("Failed to get certificate from database: " + e.getMessage(), e);
         }

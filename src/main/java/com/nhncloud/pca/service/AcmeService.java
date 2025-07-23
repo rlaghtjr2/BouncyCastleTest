@@ -28,5 +28,5 @@ public interface AcmeService {
 
     FinalizeResult finalizeOrder(Long orderId, JwsRequest jwsRequest, HttpServletRequest httpRequest);
 
-    CertificateResult getCertificate(String orderId, String baseUrl);
+    CertificateResult getCertificate(Long certificateId, String baseUrl);
 }

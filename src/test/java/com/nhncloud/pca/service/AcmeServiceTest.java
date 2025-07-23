@@ -422,15 +422,15 @@ public class AcmeServiceTest {
     @Test
     void getCertificate_success() throws Exception {
         // ----- 테스트 데이터 준비 -----
-        String certId = "cert-123";
+        Long certId = 123L; // String을 Long으로 변경
         String baseUrl = "https://localhost:8443";
 
         // ----- Mock 설정 -----
         X509Certificate testCert = generateTestCert();
-        when(certStore.get(certId)).thenReturn(testCert);
+        when(certStore.get(certId)).thenReturn(testCert); // Long 사용
 
         // ----- 서비스 호출 -----
-        CertificateResult result = service.getCertificate(certId, baseUrl);
+        CertificateResult result = service.getCertificate(certId, baseUrl); // Long 사용
 
         // ----- 검증 -----
         assertNotNull(result);
@@ -440,17 +440,17 @@ public class AcmeServiceTest {
     }
 
     @Test
-    void getCertificate_notFound() {
+    void getCertificate_certificateNotFound() {
         // ----- 테스트 데이터 준비 -----
-        String certId = "non-existent-cert";
+        Long certId = 999L; // String을 Long으로 변경 (존재하지 않는 ID)
         String baseUrl = "https://localhost:8443";
 
         // ----- Mock 설정 -----
-        when(certStore.get(certId)).thenReturn(null);
+        when(certStore.get(certId)).thenReturn(null); // Long 사용
 
         // ----- 예외 발생 검증 -----
         AcmeProblemException exception = assertThrows(AcmeProblemException.class, () -> {
-            service.getCertificate(certId, baseUrl);
+            service.getCertificate(certId, baseUrl); // Long 사용
         });
 
         assertEquals(ProblemType.SERVER_INTERNAL, exception.getProblemType());
