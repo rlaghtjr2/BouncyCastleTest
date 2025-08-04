@@ -32,6 +32,7 @@ import com.nhncloud.pca.model.certificate.CertificateInfo;
 import com.nhncloud.pca.model.key.KeyInfo;
 import com.nhncloud.pca.model.request.ca.RequestBodyForCreateCA;
 import com.nhncloud.pca.model.request.ca.RequestBodyForUpdateCA;
+import com.nhncloud.pca.model.request.certificate.RequestBodyForCreateCert;
 import com.nhncloud.pca.model.response.ca.ResponseBodyForCreateCA;
 import com.nhncloud.pca.model.response.ca.ResponseBodyForReadCA;
 import com.nhncloud.pca.model.response.ca.ResponseBodyForUpdateCA;
@@ -87,11 +88,16 @@ public class CommonTestUtil {
     }
 
     public static RequestBodyForCreateCA createTestCertificateRequestBody() {
+        // RequestBodyForCreateCert 먼저 생성
+        RequestBodyForCreateCert certRequest = new RequestBodyForCreateCert();
+        certRequest.setPeriod(TEST_CERTIFICATE_PERIOD);
+        certRequest.setKeyInfo(createTestKeyInfo());
+        certRequest.setSubjectInfo(createTestSubjectInfo());
+
+        // RequestBodyForCreateCA 생성 및 컴포지션
         RequestBodyForCreateCA requestBody = new RequestBodyForCreateCA();
         requestBody.setName(TEST_CERTIFICATE_NAME);
-        requestBody.setPeriod(TEST_CERTIFICATE_PERIOD);
-        requestBody.setKeyInfo(createTestKeyInfo());
-        requestBody.setSubjectInfo(createTestSubjectInfo());
+        requestBody.setCertificateRequest(certRequest);
         return requestBody;
     }
 

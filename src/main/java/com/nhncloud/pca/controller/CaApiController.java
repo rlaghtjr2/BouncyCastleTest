@@ -1,5 +1,8 @@
 package com.nhncloud.pca.controller;
 
+import jakarta.annotation.Nullable;
+import lombok.extern.slf4j.Slf4j;
+
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -19,9 +22,6 @@ import com.nhncloud.pca.model.response.ca.ResponseBodyForReadChainCA;
 import com.nhncloud.pca.model.response.ca.ResponseBodyForUpdateCA;
 import com.nhncloud.pca.service.CaService;
 
-import jakarta.annotation.Nullable;
-import lombok.extern.slf4j.Slf4j;
-
 @Slf4j
 @RestController
 @RequestMapping("/ca")
@@ -35,12 +35,11 @@ public class CaApiController {
     @PostMapping
     public ResponseEntity<ApiResponse> createCa(@RequestBody RequestBodyForCreateCA requestBody, @Nullable @RequestParam("certificateId") Long certificateId) {
         ResponseBodyForCreateCA result;
-        try {
+        if (certificateId == null) {
             result = caService.generateCa(requestBody, certificateId);
-        } catch (Exception e) {
-            return ResponseEntity.ok(ApiResponse.fail(50000, e.getMessage()));
+        } else {
+            result = caService.generateIntermediateCA(requestBody, certificateId);
         }
-
         return ResponseEntity.ok(ApiResponse.success(result));
     }
 

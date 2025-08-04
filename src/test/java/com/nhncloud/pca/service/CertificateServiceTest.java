@@ -61,7 +61,7 @@ public class CertificateServiceTest {
         when(certificateRepository.findByIdAndCa_Id(any(), any())).thenReturn(Optional.of(certificate));
         when(certificateRepository.save(any())).thenReturn(new CertificateEntity());
 
-        ResponseBodyForCreateCert result = service.generateCert(CommonTestUtil.createTestCertificateRequestBody(), 1L, 1L);
+        ResponseBodyForCreateCert result = service.generateCert(CommonTestUtil.createTestCertificateRequestBody().getCertificateRequest(), 1L, 1L);
         assertNotNull(result);
 
         System.out.println(result);

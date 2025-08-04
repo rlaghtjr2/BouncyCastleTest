@@ -33,7 +33,6 @@ import com.nhncloud.pca.model.ca.CaDto;
 import com.nhncloud.pca.model.certificate.CertificateDto;
 import com.nhncloud.pca.model.certificate.CertificateExtension;
 import com.nhncloud.pca.model.certificate.CertificateInfo;
-import com.nhncloud.pca.model.csr.CsrInfo;
 import com.nhncloud.pca.model.key.KeyInfo;
 import com.nhncloud.pca.model.request.certificate.RequestBodyForCreateCert;
 import com.nhncloud.pca.model.response.certificate.ResponseBodyForCreateCert;
@@ -100,8 +99,7 @@ public class CertificateServiceImpl implements CertificateService {
         X500Name issuerName = new X500Name(upperCertDto.getSubject());
 
         //3. CSR 파일 생성
-        CsrInfo csrInfo = CertificateUtil.generateCsr(requestBody, keyPair);
-        String csrPem = csrInfo.getCsrPem();
+        String csrPem = CertificateUtil.generateCsr(subjectInfo, keyPair);
         PKCS10CertificationRequest csr = BouncyCastleUtil.parseCsr(csrPem);
 
         // 4. Builder 생성

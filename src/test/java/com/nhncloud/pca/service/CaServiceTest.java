@@ -1,11 +1,5 @@
 package com.nhncloud.pca.service;
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertNotNull;
-import static org.junit.jupiter.api.Assertions.assertThrows;
-import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.Mockito.when;
-
 import java.time.LocalDateTime;
 import java.util.Arrays;
 import java.util.Collections;
@@ -40,6 +34,12 @@ import com.nhncloud.pca.model.response.ca.ResponseBodyForReadChainCA;
 import com.nhncloud.pca.model.response.ca.ResponseBodyForUpdateCA;
 import com.nhncloud.pca.repository.CaRepository;
 import com.nhncloud.pca.repository.CertificateRepository;
+
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
 public class CaServiceTest {
@@ -84,13 +84,13 @@ public class CaServiceTest {
     @Test
     public void test_rootCA_잘못된_키_알고리즘() {
         RequestBodyForCreateCA requestBody = CommonTestUtil.createTestCertificateRequestBody();
-        requestBody.getKeyInfo().setAlgorithm("INVALID_ALGORITHM");
+        requestBody.getCertificateRequest().getKeyInfo().setAlgorithm("INVALID_ALGORITHM");
         Exception exception = assertThrows(RuntimeException.class, () -> {
             // 예외를 발생시킬 코드
             service.generateCa(requestBody, null);
         });
 
-        assertEquals("Wrong Algorithm", exception.getMessage());
+        assertEquals("Invalid Algorithm or Key Size", exception.getMessage());
     }
 
     @Test
@@ -111,7 +111,6 @@ public class CaServiceTest {
         newCertificate.setId(2L);
 
         // Mock 설정
-        when(certificateRepository.findById(1L)).thenReturn(Optional.of(upperCertificate)); // 변경: findByCa_Id → findById
         when(caRepository.save(any())).thenReturn(newCa);
         when(certificateRepository.save(any())).thenReturn(newCertificate);
 

@@ -1,14 +1,5 @@
 package com.nhncloud.pca.controller;
 
-import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.anyInt;
-import static org.mockito.Mockito.when;
-import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
-import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
-import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
-import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
-import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
-
 import java.util.List;
 
 import org.junit.jupiter.api.Test;
@@ -27,6 +18,15 @@ import com.nhncloud.pca.model.response.ca.ResponseBodyForReadChainCA;
 import com.nhncloud.pca.model.response.ca.ResponseBodyForUpdateCA;
 import com.nhncloud.pca.service.CaService;
 
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyInt;
+import static org.mockito.Mockito.when;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
+
 @SpringBootTest
 @AutoConfigureMockMvc(addFilters = false)
 public class CaApiControllerTest {
@@ -42,7 +42,7 @@ public class CaApiControllerTest {
 
         ResponseBodyForCreateCA responseBodyForCreateCA = CommonTestUtil.createTestCertificateResult_Root();
 
-        when(caService.generateCa(any(),  any())).thenReturn(responseBodyForCreateCA);
+        when(caService.generateCa(any(), any())).thenReturn(responseBodyForCreateCA);
 
         String body = "{\n" +
             "  \"name\": \"ROOT CA NAME\",\n" +
@@ -78,7 +78,7 @@ public class CaApiControllerTest {
     public void test_intermediate_CA_생성() throws Exception {
 
         ResponseBodyForCreateCA responseBodyForCreateCA = CommonTestUtil.createTestCertificateResult_Intermediate();
-        when(caService.generateCa(any(),  any())).thenReturn(responseBodyForCreateCA);
+        when(caService.generateCa(any(), any())).thenReturn(responseBodyForCreateCA);
 
         String body = "{\n" +
             "  \"name\": \"Intermediate CA NAME\",\n" +
@@ -121,7 +121,7 @@ public class CaApiControllerTest {
                 .contentType("application/json"))
             .andExpect(status().isOk())
             .andExpect(jsonPath("$.header.isSuccessful").value(true))
-            .andExpect(jsonPath("$.body.certificateInfo.subjectInfo.commonName").value(CommonTestUtil.TEST_SUBJECT_INFO_COMMON_NAME));
+            .andExpect(jsonPath("$.body.caInfo.id").value(CommonTestUtil.TEST_CA_INFO_ID));
     }
 
 

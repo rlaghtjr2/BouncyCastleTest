@@ -50,4 +50,23 @@ public enum KeyAlgorithm {
         }
         return null;
     }
+
+    /**
+     * 지정된 알고리즘 이름과 키 크기가 모두 유효한지 검증
+     * @param algorithmName 알고리즘 이름 (예: "RSA", "EC")
+     * @param keySize 키 크기 (예: 2048, 256)
+     * @return 유효한 조합인지 여부
+     */
+    public static boolean isValidAlgorithmAndKeySize(String algorithmName, int keySize) {
+        if (algorithmName == null || algorithmName.trim().isEmpty()) {
+            return false;
+        }
+
+        KeyAlgorithm algorithm = fromString(algorithmName);
+        if (algorithm == null) {
+            return false;
+        }
+
+        return algorithm.isSupportedKeySize(keySize);
+    }
 }

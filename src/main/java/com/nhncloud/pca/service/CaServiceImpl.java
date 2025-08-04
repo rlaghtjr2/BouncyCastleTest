@@ -1,17 +1,19 @@
 package com.nhncloud.pca.service;
 
+import lombok.extern.slf4j.Slf4j;
+
 import java.security.KeyPair;
 import java.security.KeyPairGenerator;
 import java.security.NoSuchAlgorithmException;
 import java.security.NoSuchProviderException;
 import java.security.PrivateKey;
 import java.security.Security;
+import java.security.cert.CertificateEncodingException;
 import java.security.cert.X509Certificate;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
-import java.util.Optional;
 import java.util.stream.Collectors;
 
 import org.bouncycastle.asn1.x500.X500Name;
@@ -27,6 +29,7 @@ import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import com.nhncloud.pca.constant.KeyAlgorithm;
 import com.nhncloud.pca.constant.ca.CaStatus;
 import com.nhncloud.pca.constant.certificate.CertificateStatus;
 import com.nhncloud.pca.entity.CaEntity;
@@ -38,7 +41,6 @@ import com.nhncloud.pca.model.ca.CaInfo;
 import com.nhncloud.pca.model.certificate.CertificateDto;
 import com.nhncloud.pca.model.certificate.CertificateExtension;
 import com.nhncloud.pca.model.certificate.CertificateInfo;
-import com.nhncloud.pca.model.csr.CsrInfo;
 import com.nhncloud.pca.model.key.KeyInfo;
 import com.nhncloud.pca.model.request.ca.RequestBodyForCreateCA;
 import com.nhncloud.pca.model.response.ca.ResponseBodyForCreateCA;
@@ -51,8 +53,6 @@ import com.nhncloud.pca.repository.CaRepository;
 import com.nhncloud.pca.repository.CertificateRepository;
 import com.nhncloud.pca.util.BouncyCastleUtil;
 import com.nhncloud.pca.util.CertificateUtil;
-
-import lombok.extern.slf4j.Slf4j;
 
 @Service
 @Slf4j
@@ -83,152 +83,103 @@ public class CaServiceImpl implements CaService {
     public ResponseBodyForCreateCA generateCa(RequestBodyForCreateCA requestBody, Long certificateId) {
         log.info("generateCa() = {}", requestBody);
 
-        //1. 인증서 생성에 사용할 Key 만들기
-        KeyPair keyPair = generateKeyPair(requestBody.getKeyInfo());
+        // 1. Key 생성
+        KeyPair keyPair = generateKeyPair(requestBody.getCertificateRequest().getKeyInfo());
 
-        //2. 정보 세팅
-        SubjectInfo subjectInfo = requestBody.getSubjectInfo();
-
+        // 2. Subject 정보 설정 (Root CA이므로 issuer = subject)
+        SubjectInfo subjectInfo = requestBody.getCertificateRequest().getSubjectInfo();
         X500Name issuerName = new X500Name(subjectInfo.toDistinguishedName());
         X500Name subjectName = new X500Name(subjectInfo.toDistinguishedName());
 
-        PrivateKey signingKey = keyPair.getPrivate();
-
-        X509Certificate upperCertificate = null;
-        if (certificateId != null) {
-            //3. Intermediate경우 signingKey와 Issuer가 달라짐
-            CertificateEntity upperCaCert = certificateRepository.findById(certificateId).orElseThrow(() -> new RuntimeException("Certificate not found"));
-
-            CaDto upperCaDto = caMapper.toDto(upperCaCert.getCa());
-            if (upperCaDto.getStatus() != CaStatus.ACTIVE) {
-                // findBy..에서 처리할 수 도 있지만, 다른 Exception을 줘야히지 않을까?싶어 보류
-                throw new RuntimeException("Upper CA is not ACTIVE");
-            }
-
-            String upperPrivateKey = upperCaCert.getPrivateKey();
-            String upperCertificatePem = upperCaCert.getCertificatePem();
-            PrivateKey upperPrivateKeyObj = CertificateUtil.parsePrivateKey(upperPrivateKey);
-            upperCertificate = BouncyCastleUtil.parseCertificate(upperCertificatePem);
-
-            signingKey = upperPrivateKeyObj;
-            issuerName = new X500Name(upperCaCert.getSubject());
-        }
-
-        //3. CSR 파일 생성
-        CsrInfo csrInfo = CertificateUtil.generateCsr(requestBody, keyPair);
-        String csrPem = csrInfo.getCsrPem();
+        // 3. CSR 생성
+        String csrPem = CertificateUtil.generateCsr(subjectInfo, keyPair);
         PKCS10CertificationRequest csr = BouncyCastleUtil.parseCsr(csrPem);
 
-
-        // 4. Builder 생성
+        // 4. Certificate Builder 생성
         X509v3CertificateBuilder certBuilder = BouncyCastleUtil.getCertificateBuilder(
-            issuerName,
-            subjectName,
-            requestBody.getPeriod(),
-            csr.getSubjectPublicKeyInfo()
-        );
+            issuerName, subjectName, requestBody.getCertificateRequest().getPeriod(), csr.getSubjectPublicKeyInfo());
 
-        // 5. Extension 넣기
+        // 5. Extensions 추가
         try {
-            List<CertificateExtension> extensions = new ArrayList<>();
-
-            // 기본 확장 필드
-            extensions.add(new CertificateExtension(Extension.basicConstraints, true, new BasicConstraints(true)));
-            extensions.add(new CertificateExtension(Extension.keyUsage, true, new KeyUsage(KeyUsage.keyCertSign | KeyUsage.cRLSign)));
-
-            // Subject Key Identifier
-            extensions.add(new CertificateExtension(
-                Extension.subjectKeyIdentifier,
-                false,
-                new JcaX509ExtensionUtils().createSubjectKeyIdentifier(csr.getSubjectPublicKeyInfo())
-            ));
-            // Intermediate일 경우 Authority Key Identifier 추가
-            if (certificateId != null) {
-                extensions.add(new CertificateExtension(
-                    Extension.authorityKeyIdentifier,
-                    false,
-                    new JcaX509ExtensionUtils().createAuthorityKeyIdentifier(upperCertificate.getPublicKey())
-                ));
-            }
-
+            List<CertificateExtension> extensions = createCertificateExtensions(csr, false, null);
             BouncyCastleUtil.setCertificateExtensions(certBuilder, extensions);
-        } catch (NoSuchAlgorithmException e) {
+        } catch (NoSuchAlgorithmException | CertificateEncodingException e) {
             throw new RuntimeException("Failed to add extensions", e);
         }
 
-        // 6. 인증서 생성 - signing Key로  sign
-        X509Certificate certificate = BouncyCastleUtil.getX509Certificate(certBuilder, signingKey);
+        // 6. Certificate 생성 (Root CA이므로 자기 자신으로 서명)
+        X509Certificate certificate = BouncyCastleUtil.getX509Certificate(certBuilder, keyPair.getPrivate());
 
-        // 7. 생성한 인증서 PEM 변환
-        String certificatePem = CertificateUtil.toPemString(certificate);
+        // 7. Private Key PEM 변환
         String privateKeyPem = CertificateUtil.toPemString(keyPair.getPrivate());
 
+        // 8. CA 및 Certificate 저장 (Root CA이므로 signedCertificateId = null)
+        CaEntity caEntity = saveCa(requestBody);
+        CertificateEntity certificateEntity = saveCertificate(caEntity, csrPem, certificate, privateKeyPem, null);
 
-        // 8. DB에 저장
-        // 8-1 CA 저장
-        CaDto caDto = CaDto.builder()
-            .name(requestBody.getName())
-            .toastProjectId(1L) // TODO: 실제 프로젝트 ID로 변경 필요
-            .status(CaStatus.ACTIVE)
-            .creationUser("HOSEOK")
-            .creationDatetime(LocalDateTime.now())
-            .build();
-        CaEntity caEntity = caMapper.toEntity(caDto);
-        caEntity = caRepository.save(caEntity);
+        // 9. Response 생성
+        return buildCreateCaResponse(caEntity, certificateEntity, certificate, issuerName);
+    }
 
-        // 8-2 signedCa를 저장
-        CaEntity upperCaEntity = certificateId != null ? certificateRepository.findById(certificateId).get().getCa() : caEntity;
+    @Override
+    @Transactional
+    public ResponseBodyForCreateCA generateIntermediateCA(RequestBodyForCreateCA requestBody, Long certificateId) {
+        log.info("generateIntermediateCA() = {}", requestBody);
 
-        // 8-2 인증서 저장
-        // 만들어진 인증서 정보 Certificate Dto -> Entity
-        CertificateDto certificateDto = CertificateDto.builder()
-            .ca(CaDto.builder().id(caEntity.getId()).build())
-            .csr(csrPem)
-            .status(CertificateStatus.ACTIVE)
-            .certificatePem(certificatePem)
-            .privateKey(privateKeyPem)
-            .creationUser("HOSEOK")
-            .creationDatetime(LocalDateTime.now())
-            .build();
-        certificateDto.setX509Certificate(certificate);
-        CertificateEntity certificateEntity = certificateMapper.toEntity(certificateDto);
+        // 1. Key 생성
+        KeyPair keyPair = generateKeyPair(requestBody.getCertificateRequest().getKeyInfo());
 
-        // NotNull 제약조건을 위해 임시값 설정하고 저장
-        certificateEntity.setSignedCertificateId("TEMP");
-        CertificateEntity savedCertificate = certificateRepository.save(certificateEntity);
+        // 2. Upper Certificate 정보 조회 (Intermediate CA용)
+        CertificateEntity upperCaCert = certificateRepository.findById(certificateId)
+            .orElseThrow(() -> new RuntimeException("Certificate not found"));
 
-        // 저장된 Certificate ID를 얻음
-        String savedCertificateId = savedCertificate.getId().toString();
+        CaDto upperCaDto = caMapper.toDto(upperCaCert.getCa());
+        if (upperCaDto.getStatus() != CaStatus.ACTIVE) {
+            throw new RuntimeException("Upper CA is not ACTIVE");
+        }
 
-        // 올바른 signedCertificateId 설정
-        CertificateEntity upperCertificateEntity = getCertificateById(upperCaEntity, certificateId);
-        String signedCertificateId = Optional.ofNullable(upperCertificateEntity)
-            .map(cert -> cert.getSignedCertificateId() + "," + savedCertificateId)
-            .orElse(savedCertificateId);
+        X509Certificate upperCertificate = BouncyCastleUtil.parseCertificate(upperCaCert.getCertificatePem());
+        PrivateKey signingKey = CertificateUtil.parsePrivateKey(upperCaCert.getPrivateKey());
 
-        // 올바른 signedCertificateId로 업데이트
-        savedCertificate.setSignedCertificateId(signedCertificateId);
-        certificateRepository.save(savedCertificate);
+        // 3. Subject 정보 설정 (Intermediate CA이므로 issuer는 upper certificate)
+        SubjectInfo subjectInfo = requestBody.getCertificateRequest().getSubjectInfo();
+        X500Name issuerName = new X500Name(upperCaCert.getSubject());
+        X500Name subjectName = new X500Name(subjectInfo.toDistinguishedName());
 
-        // 9. Return type 정의
-        // 9-1 Ca 정보
-        CaInfo caInfo = CaInfo.fromCaDto(caMapper.toDto(caEntity));
+        // 4. CSR 생성
+        String csrPem = CertificateUtil.generateCsr(subjectInfo, keyPair);
+        PKCS10CertificationRequest csr = BouncyCastleUtil.parseCsr(csrPem);
 
-        // 9-2 인증서 정보
-        CertificateInfo caCertificateInfo = CertificateInfo.fromCertificateDtoAndCertificate(certificateMapper.toDto(savedCertificate), certificate);
-        caCertificateInfo.setSerialNumber(CertificateUtil.formatSerialNumber(certificate.getSerialNumber().toByteArray()));
-        caCertificateInfo.setIssuer(issuerName.toString());
 
-        // 9. Return값
-        ResponseBodyForCreateCA result = ResponseBodyForCreateCA.builder()
-            .caInfo(caInfo)
-            .certificateInfo(caCertificateInfo)
-            .status(caInfo.getStatus())
-            .creationDatetime(caDto.getCreationDatetime())
-            .creationUser(caDto.getCreationUser())
-            .build();
+        // 5. Certificate Builder 생성
+        X509v3CertificateBuilder certBuilder = BouncyCastleUtil.getCertificateBuilder(
+            issuerName, subjectName, requestBody.getCertificateRequest().getPeriod(), csr.getSubjectPublicKeyInfo());
 
-        return result;
+        // 6. Extensions 추가 (Intermediate용)
+        try {
+            List<CertificateExtension> extensions = createCertificateExtensions(csr, true, upperCertificate);
+            BouncyCastleUtil.setCertificateExtensions(certBuilder, extensions);
+        } catch (NoSuchAlgorithmException | CertificateEncodingException e) {
+            throw new RuntimeException("Failed to add extensions", e);
+        }
+
+        // 7. Certificate 생성 (Upper CA로 서명)
+        X509Certificate certificate = BouncyCastleUtil.getX509Certificate(certBuilder, signingKey);
+
+        // 8. Private Key PEM 변환
+        String privateKeyPem = CertificateUtil.toPemString(keyPair.getPrivate());
+
+        // 9. SignedCertificateId 계산
+        String signedCertificateId = upperCaCert.getSignedCertificateId() == null
+            ? upperCaCert.getId().toString()
+            : upperCaCert.getSignedCertificateId() + "," + upperCaCert.getId();
+
+        // 10. CA 및 Certificate 저장
+        CaEntity caEntity = saveCa(requestBody);
+        CertificateEntity certificateEntity = saveCertificate(caEntity, csrPem, certificate, privateKeyPem, signedCertificateId);
+
+        // 11. Response 생성
+        return buildCreateCaResponse(caEntity, certificateEntity, certificate, issuerName);
     }
 
     @Override
@@ -238,21 +189,20 @@ public class CaServiceImpl implements CaService {
 
         Page<CaEntity> caEntities = caRepository.findByStatusNot(CaStatus.DELETED, pageRequest);
 
+        //TODO : Return할 때 정보들 필터링 필요 (필요한 정보만)
         List<ResponseBodyForReadCA> caInfoList = caEntities.getContent().stream()
             .map(caEntity -> {
                 CaDto caDto = caMapper.toDto(caEntity);
                 CaInfo caInfo = CaInfo.fromCaDto(caDto);
 
                 // 모든 certificates를 List로 변환
-                List<CertificateInfo> certificateInfoList = new ArrayList<>();
-                if (caEntity.getCertificates() != null && !caEntity.getCertificates().isEmpty()) {
-                    certificateInfoList = caEntity.getCertificates().stream()
-                        .map(certificate -> {
-                            CertificateDto certificateDto = certificateMapper.toDto(certificate);
-                            return getCertificateInfoByCertificateDto(certificateDto);
-                        })
-                        .collect(Collectors.toList());
-                }
+                List<CertificateInfo> certificateInfoList = caEntity.getCertificates().stream()
+                    .map(certificate -> {
+                        CertificateDto certificateDto = certificateMapper.toDto(certificate);
+                        return getCertificateInfoByCertificateDto(certificateDto);
+                    })
+                    .collect(Collectors.toList());
+
 
                 return ResponseBodyForReadCA.builder()
                     .caInfo(caInfo)
@@ -283,15 +233,14 @@ public class CaServiceImpl implements CaService {
         CaInfo caInfo = CaInfo.fromCaDto(caDto);
 
         // 모든 certificates를 List로 변환
-        List<CertificateInfo> certificateInfoList = new ArrayList<>();
-        if (caEntity.getCertificates() != null && !caEntity.getCertificates().isEmpty()) {
-            certificateInfoList = caEntity.getCertificates().stream()
-                .map(certificate -> {
-                    CertificateDto certificateDto = certificateMapper.toDto(certificate);
-                    return getCertificateInfoByCertificateDto(certificateDto);
-                })
-                .collect(Collectors.toList());
-        }
+        //TODO : Return할 때 정보들 필터링 필요 (필요한 정보만)
+        List<CertificateInfo> certificateInfoList = caEntity.getCertificates().stream()
+            .map(certificate -> {
+                CertificateDto certificateDto = certificateMapper.toDto(certificate);
+                return getCertificateInfoByCertificateDto(certificateDto);
+            })
+            .collect(Collectors.toList());
+
 
         return ResponseBodyForReadCA.builder()
             .caInfo(caInfo)
@@ -435,19 +384,20 @@ public class CaServiceImpl implements CaService {
     }
 
     private KeyPair generateKeyPair(KeyInfo keyInfo) {
-        // Algorithm과 provider BC(Bouncy Castle) 지정
-        KeyPairGenerator keyGen = null;
+        if (!KeyAlgorithm.isValidAlgorithmAndKeySize(keyInfo.getAlgorithm(), keyInfo.getKeySize())) {
+            throw new RuntimeException("Invalid Algorithm or Key Size");
+        }
+
         try {
-            keyGen = KeyPairGenerator.getInstance(keyInfo.getAlgorithm(), "BC");
+            KeyPairGenerator keyGen = KeyPairGenerator.getInstance(keyInfo.getAlgorithm(), "BC");
+            keyGen.initialize(keyInfo.getKeySize());
+            return keyGen.generateKeyPair();
         } catch (NoSuchAlgorithmException e) {
             throw new RuntimeException("Wrong Algorithm");
         } catch (NoSuchProviderException e) {
-            //BC를 넣고있기때문에 발생하지 않을것같음..
             throw new RuntimeException("No Such Provider");
         }
-        // 키 사이즈 지정
-        keyGen.initialize(keyInfo.getKeySize());
-        return keyGen.generateKeyPair();
+
     }
 
     private List<String> buildCaChain(List<Long> signedCaCertificateList) {
@@ -460,52 +410,106 @@ public class CaServiceImpl implements CaService {
         return chain;
     }
 
-    /**
-     * CA의 certificates 중에서 특정 certificateId와 일치하는 certificate를 반환합니다
-     */
-    private CertificateEntity getCertificateById(CaEntity caEntity, Long certificateId) {
-        if (caEntity.getCertificates() == null || caEntity.getCertificates().isEmpty()) {
-            return null;
-        }
-
-        if (certificateId == null) {
-            // certificateId가 null인 경우 첫 번째 certificate 반환
-            return caEntity.getCertificates().get(0);
-        }
-
-        return caEntity.getCertificates().stream()
-            .filter(cert -> cert.getId().equals(certificateId))
-            .findFirst()
-            .orElse(null);
-    }
-
-    /**
-     * CA의 주요 certificate를 가져옵니다 (가장 최근 생성된 ACTIVE 상태)
-     */
-    private CertificateEntity getPrimaryCertificate(CaEntity caEntity) {
-        if (caEntity.getCertificates() == null || caEntity.getCertificates().isEmpty()) {
-            return null;
-        }
-
-        return caEntity.getCertificates().stream()
-            .filter(cert -> cert.getStatus() == CertificateStatus.ACTIVE)
-            .sorted((c1, c2) -> c2.getCreationDatetime().compareTo(c1.getCreationDatetime()))
-            .findFirst()
-            .orElse(caEntity.getCertificates().get(0)); // ACTIVE가 없으면 첫 번째 certificate
-    }
-
-    /**
-     * CA의 첫 번째 certificate를 가져옵니다
-     */
-    private CertificateEntity getFirstCertificate(CaEntity caEntity) {
-        if (caEntity.getCertificates() == null || caEntity.getCertificates().isEmpty()) {
-            return null;
-        }
-        return caEntity.getCertificates().get(0);
-    }
-
     private CertificateInfo getCertificateInfoByCertificateDto(CertificateDto certificateDto) {
         X509Certificate x509Certificate = BouncyCastleUtil.parseCertificate(certificateDto.getCertificatePem());
         return CertificateInfo.fromCertificateDtoAndCertificate(certificateDto, x509Certificate);
+    }
+
+    /**
+     * Certificate Extensions 생성
+     */
+    private List<CertificateExtension> createCertificateExtensions(PKCS10CertificationRequest csr, boolean isIntermediate,
+                                                                   X509Certificate upperCertificate) throws NoSuchAlgorithmException, CertificateEncodingException {
+        List<CertificateExtension> extensions = new ArrayList<>();
+
+        // 기본 확장 필드
+        extensions.add(new CertificateExtension(
+            Extension.basicConstraints,
+            true,
+            new BasicConstraints(true)
+        ));
+        extensions.add(new CertificateExtension(
+            Extension.keyUsage,
+            true,
+            new KeyUsage(KeyUsage.keyCertSign | KeyUsage.cRLSign)
+        ));
+
+        // Subject Key Identifier
+        extensions.add(new CertificateExtension(
+            Extension.subjectKeyIdentifier,
+            false,
+            new JcaX509ExtensionUtils().createSubjectKeyIdentifier(csr.getSubjectPublicKeyInfo())
+        ));
+
+        // Intermediate일 경우 Authority Key Identifier 추가
+        if (isIntermediate && upperCertificate != null) {
+            extensions.add(new CertificateExtension(
+                Extension.authorityKeyIdentifier,
+                false,
+                new JcaX509ExtensionUtils().createAuthorityKeyIdentifier(upperCertificate)
+            ));
+        }
+
+        return extensions;
+    }
+
+    /**
+     * CA 저장
+     */
+    private CaEntity saveCa(RequestBodyForCreateCA requestBody) {
+        CaDto caDto = CaDto.builder()
+            .name(requestBody.getName())
+            .toastProjectId(1L) // TODO: 실제 프로젝트 ID로 변경 필요
+            .status(CaStatus.ACTIVE)
+            .creationUser("HOSEOK")
+            .creationDatetime(LocalDateTime.now())
+            .build();
+        CaEntity caEntity = caMapper.toEntity(caDto);
+        return caRepository.save(caEntity);
+    }
+
+    /**
+     * Certificate 저장
+     */
+    private CertificateEntity saveCertificate(CaEntity caEntity, String csrPem, X509Certificate certificate,
+                                              String privateKeyPem, String signedCertificateId) {
+        // Certificate에서 PEM 생성
+        String certificatePem = CertificateUtil.toPemString(certificate);
+
+        CertificateDto certificateDto = CertificateDto.builder()
+            .ca(CaDto.builder().id(caEntity.getId()).build())
+            .csr(csrPem)
+            .status(CertificateStatus.ACTIVE)
+            .certificatePem(certificatePem)
+            .privateKey(privateKeyPem)
+            .creationUser("HOSEOK")
+            .creationDatetime(LocalDateTime.now())
+            .signedCertificateId(signedCertificateId)
+            .build();
+        certificateDto.setX509Certificate(certificate);
+
+        CertificateEntity certificateEntity = certificateMapper.toEntity(certificateDto);
+        return certificateRepository.save(certificateEntity);
+    }
+
+    /**
+     * ResponseBodyForCreateCA 생성
+     */
+    private ResponseBodyForCreateCA buildCreateCaResponse(CaEntity caEntity, CertificateEntity certificateEntity,
+                                                          X509Certificate certificate, X500Name issuerName) {
+        CaInfo caInfo = CaInfo.fromCaDto(caMapper.toDto(caEntity));
+
+        CertificateInfo caCertificateInfo = CertificateInfo.fromCertificateDtoAndCertificate(
+            certificateMapper.toDto(certificateEntity), certificate);
+        caCertificateInfo.setSerialNumber(CertificateUtil.formatSerialNumber(certificate.getSerialNumber().toByteArray()));
+        caCertificateInfo.setIssuer(issuerName.toString());
+
+        return ResponseBodyForCreateCA.builder()
+            .caInfo(caInfo)
+            .certificateInfo(caCertificateInfo)
+            .status(caInfo.getStatus())
+            .creationDatetime(caEntity.getCreationDatetime())
+            .creationUser(caEntity.getCreationUser())
+            .build();
     }
 }

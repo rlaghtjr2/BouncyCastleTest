@@ -20,8 +20,6 @@ import org.bouncycastle.operator.jcajce.JcaContentSignerBuilder;
 import org.bouncycastle.pkcs.PKCS10CertificationRequest;
 import org.bouncycastle.pkcs.PKCS10CertificationRequestBuilder;
 
-import com.nhncloud.pca.model.csr.CsrInfo;
-import com.nhncloud.pca.model.request.certificate.RequestBodyForCreateCert;
 import com.nhncloud.pca.model.subject.SubjectInfo;
 
 public class CertificateUtil {
@@ -70,9 +68,7 @@ public class CertificateUtil {
         return sb.toString();
     }
 
-    public static CsrInfo generateCsr(RequestBodyForCreateCert requestBody, KeyPair keyPair) {
-        SubjectInfo subjectInfo = requestBody.getSubjectInfo();
-
+    public static String generateCsr(SubjectInfo subjectInfo, KeyPair keyPair) {
         // Subject 이름 설정
         X500Name subject = new X500Name(subjectInfo.toDistinguishedName());
 
@@ -92,14 +88,7 @@ public class CertificateUtil {
 
         PKCS10CertificationRequest csr = csrBuilder.build(signer);
 
-        // PEM 문자열로 변환
-        String csrPem = CertificateUtil.toPemString(csr);
-        String privateKeyPem = CertificateUtil.toPemString(keyPair.getPrivate());
-
-        CsrInfo csrInfo = CsrInfo.builder()
-            .csrPem(csrPem)
-            .privateKey(privateKeyPem).build();
-
-        return csrInfo;
+        // PEM 문자열로 변환하여 바로 반환
+        return CertificateUtil.toPemString(csr);
     }
 }

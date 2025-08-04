@@ -8,7 +8,9 @@ import com.nhncloud.pca.model.response.ca.ResponseBodyForReadChainCA;
 import com.nhncloud.pca.model.response.ca.ResponseBodyForUpdateCA;
 
 public interface CaService {
-    ResponseBodyForCreateCA generateCa(RequestBodyForCreateCA requestBody, Long certificateId) throws Exception;
+    ResponseBodyForCreateCA generateCa(RequestBodyForCreateCA requestBody, Long certificateId);
+
+    ResponseBodyForCreateCA generateIntermediateCA(RequestBodyForCreateCA requestBody, Long certificateId);
 
     ResponseBodyForReadCAList getCaList(int page);
 
